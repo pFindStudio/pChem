@@ -53,6 +53,9 @@ python blind_search.py
 
 3. run the close search module to make a restrcted search to further improve the resolution of dataset and identification efficiency of target PDM. 
 
+
+We can then run the CMD as: 
+
 ```
 python close_identify.py 
 ```
