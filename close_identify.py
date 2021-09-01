@@ -1,11 +1,66 @@
 # 限定式搜索
-# 1. 对未知修饰的质量做校正
-# 2. 运行限定式搜索输出最终鉴定结果
+# 运行限定式搜索输出最终鉴定结果
 
 import os 
 from utils import parameter_file_read, mass_diff_read, expand_modification_ini, modification_ini_path, close_cfg_write, search_exe_path
-from mass_diff_correction import mass_correct, small_delta_filter, mass_diff_diff_filter, mass_static, summary_write, mass_select    
+from mass_diff_correction import mass_correct, small_delta_filter, mass_diff_diff_filter, mass_static, summary_write, \
+    mass_select, explain_dict_generate, new_summary_write, update_identification_efficiency    
+from pparse import data_preprocess
 
+
+def new_close_search(current_path): 
+    pchem_cfg_path = os.path.join(current_path, 'pChem.cfg')
+    close_cfg_path = os.path.join(os.path.join(current_path, 'template'), 'close.cfg') 
+    # parameter_dict = parameter_file_read(pchem_cfg_path) 
+    parameter_dict = data_preprocess(pchem_cfg_path, current_path)
+
+    
+    # 进行限定式搜索 
+    bin_path, exe_path = search_exe_path(parameter_dict)
+    cmd = exe_path + ' ' + close_cfg_path 
+    os.chdir(bin_path)
+    receive = os.system(cmd)
+    print(receive) 
+    
+    os.chdir(current_path)
+    # 对限定式结果进行分析 
+    mass_diff_list = [] 
+    with open('mod_list.txt', 'r', encoding='utf-8') as f: 
+        lines = f.readlines() 
+    
+    for m in lines:
+        if len(m) < 2:
+            break 
+        mass_diff_list.append(m.strip().split('.')[0])
+    
+    print('mass', mass_diff_list)
+    
+    close_path = os.path.join(parameter_dict['output_path'], 'close') 
+    close_res_path = os.path.join(close_path, 'pFind-Filtered.spectra') 
+    mod_static_dict, mod_number_dict = mass_static(close_res_path, current_path, mass_diff_list, parameter_dict['side_position'])
+    mass_diff_dict = mass_correct(current_path, close_res_path, mass_diff_list, system_correct='mean', mod_correct='mean') 
+    explain_dict = explain_dict_generate(current_path)
+    close_pfind_path = os.path.join(close_path, 'pFind.summary') 
+    mod2pep = mod2pep_generate(close_pfind_path, mass_diff_list)
+    print(mass_diff_dict)
+    
+    mass_diff_pair_rank = new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, parameter_dict, explain_dict, pattern='close') 
+    # 对雷达图指标进行更新 
+    update_identification_efficiency(current_path, parameter_dict) 
+    
+
+
+def mod2pep_generate(close_pfind_path, mass_diff_list): 
+    mod2pep = {}
+
+    with open(close_pfind_path, 'r', encoding='utf-8') as f: 
+        lines = f.readlines() 
+
+    for m in mass_diff_list:
+        for line in lines: 
+            if m in line: 
+                mod2pep[m] = int(line.split('\t')[1].split()[0])
+    return mod2pep
 
 def close_search(current_path):
     
@@ -69,4 +124,4 @@ def close_search(current_path):
 
 if __name__ == "__main__":
     current_path = os.getcwd() 
-    close_search(current_path)
+    new_close_search(current_path)
