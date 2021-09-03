@@ -2,7 +2,9 @@
 
 A modification-centric assessment tool for performance of chemoproteomic probes
 
-# Introduction
+# Introduction 
+
+Chemical probe coupled with mass spectrometry (MS)-based proteomics, herein termed chemoproteomics, offers versatile tools to globally profile protein features and to systematically interrogate the mode of action of small molecules in a native biological system. Nonetheless, development of an efficient and selective probe for chemoproteomics can still be challenging. Besides, it is also difficult to unbiasedly assess its chemoselectivity at a proteome-wide scale. Here we present pChem, a modification-centric blind search and summarization tool to provide a pipeline for rapid and unbiased assessing of the performance of ABPP and metabolic labeling probes. This pipeline starts experimentally by isotopic coding of PDMs, which can be automatically recognized, paired, and accurately reported by pChem, further allowing users to score the profiling efficiency, modification-homogeneity and proteome-wide residue selectivity of a chemoproteomic probe.
 
 This repository is an official implementation for **pChem**, which can generate all unknown modification candidates using blind search based on the pFind platform. 
 
@@ -61,17 +63,5 @@ python close_identify.py
 ```
 
 For more detailed usage, please refer to the instruction. 
-
-
-
-
-
-
-
-
-
-
-
-
 
 
