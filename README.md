@@ -34,12 +34,12 @@ In this section, we provide a simple and fast usage instruction to familiarize w
 ```
 # ------------------------------------------------------------------
 # parameter setting
-# path to the pFind
+# path to the pFind installation 
 pfind_install_path=D:\pFind3
 # path to the fasta dataset
 fasta_path=...
 # path to the msms dataset
-msmspath = ...
+msmspath = ... 
 # ------------------------------------------------------------------
 ```
 
@@ -53,7 +53,7 @@ We can run the CMD as:
 python blind_search.py 
 ```
 
-3. run the close search module to make a restrcted search to further improve the resolution of dataset and identification efficiency of target PDM. 
+3. run the close search module to make a restrcted search to further improve the resolution of dataset and identification efficiency of target PDM, according to the unknown modification characteration.
 
 
 We can then run the CMD as: 
@@ -62,6 +62,6 @@ We can then run the CMD as:
 python close_identify.py 
 ```
 
-For more detailed usage, please refer to the instruction. 
+For more detailed usage, please refer to the user guid. 
 
 
