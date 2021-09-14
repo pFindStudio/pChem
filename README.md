@@ -12,6 +12,10 @@ For the ease of usage, we provide executable files (.exe) that can run in any en
 
 Please send any questions, comments or bug reports to feizhengcong@ict.ac.cn.  
 
+# Download 
+
+The software can be downloaded from [google drive](https://drive.google.com/file/d/11hYJI1cB9T-WV91_OyW5rDvYhgjTjzRv/view?usp=sharing). 
+
 # Requirements 
 
 For exe version: 
