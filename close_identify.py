@@ -2,7 +2,8 @@
 # 运行限定式搜索输出最终鉴定结果
 
 import os 
-from utils import parameter_file_read, mass_diff_read, expand_modification_ini, modification_ini_path, close_cfg_write, search_exe_path
+from utils import parameter_file_read, mass_diff_read, expand_modification_ini, modification_ini_path, close_cfg_write, search_exe_path,\
+    delete_file, remove_file
 from mass_diff_correction import mass_correct, small_delta_filter, mass_diff_diff_filter, mass_static, summary_write, \
     mass_select, explain_dict_generate, new_summary_write, update_identification_efficiency    
 from pparse import data_preprocess
@@ -10,11 +11,14 @@ from pparse import data_preprocess
 
 def new_close_search(current_path): 
     pchem_cfg_path = os.path.join(current_path, 'pChem.cfg')
-    close_cfg_path = os.path.join(os.path.join(current_path, 'template'), 'close.cfg') 
+    close_cfg_path = os.path.join(os.path.join(os.path.join(current_path, 'bin'), 'template'), 'close.cfg') 
     # parameter_dict = parameter_file_read(pchem_cfg_path) 
     parameter_dict = data_preprocess(pchem_cfg_path, current_path)
 
-    
+    close_output_path = os.path.join(parameter_dict['output_path'], 'close')
+    if not os.path.exists(close_output_path): 
+        os.makedirs(close_output_path) 
+
     # 进行限定式搜索 
     bin_path, exe_path = search_exe_path(parameter_dict)
     cmd = exe_path + ' ' + close_cfg_path 
@@ -27,6 +31,7 @@ def new_close_search(current_path):
     mass_diff_list = [] 
     with open('mod_list.txt', 'r', encoding='utf-8') as f: 
         lines = f.readlines() 
+    
     
     for m in lines:
         if len(m) < 2:
@@ -48,6 +53,23 @@ def new_close_search(current_path):
     # 对雷达图指标进行更新 
     update_identification_efficiency(current_path, parameter_dict) 
     
+    os.chdir(current_path)
+    
+    reporting_result_path = os.path.join(parameter_dict['output_path'], 'reporting_summary')
+    
+    delete_file(current_path, 'modification-null.ini')
+    delete_file(current_path, 'modification-new.ini')
+    delete_file(current_path, 'mass_diff_list.txt')
+    delete_file(current_path, 'mod_list.txt')
+    delete_file(current_path, 'pChem.metric')
+    delete_file(current_path, 'pChem.summary')
+    delete_file(current_path, 'modification-new.ini') 
+    delete_file(current_path, 'heat_map.pdf') 
+    delete_file(current_path, 'pChem-close.summary')
+    remove_file(current_path, 'radar.pdf', reporting_result_path)
+
+
+
 
 
 def mod2pep_generate(close_pfind_path, mass_diff_list): 
@@ -66,7 +88,7 @@ def close_search(current_path):
     
     
     pchem_cfg_path = os.path.join(current_path, 'pChem.cfg')
-    close_cfg_path = os.path.join(os.path.join(current_path, 'template'), 'close.cfg')
+    close_cfg_path = os.path.join(os.path.join(os.path.join(current_path, 'bin'), 'template'), 'close.cfg')
 
     # 读取位置修饰质量数的列表
     mass_diff_list, _ = mass_diff_read(current_path)

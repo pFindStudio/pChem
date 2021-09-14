@@ -4,7 +4,7 @@ import os
 from utils import parameter_file_read, modification_ini_path, modification_ini_dict, \
     modification_ini_generation, blind_cfg_write, search_exe_path, mass_diff_list_generate, \
     modification_ini_generation_from_param, mass_diff_read, expand_modification_ini, add_mass_list, \
-    close_cfg_write, new_mass_list_generate
+    close_cfg_write, new_mass_list_generate, delete_file, remove_file
 from mass_diff_correction import mass_correct, small_delta_filter, \
     mass_static, summary_write, mass_select, new_summary_write, unimod_dict_generate, \
     summary_filter, explain_dict_generate 
@@ -16,7 +16,7 @@ def blind_search(current_path):
     
     # 路径参数 
     pchem_cfg_path = os.path.join(current_path, 'pChem.cfg')
-    blind_cfg_path = os.path.join(os.path.join(current_path, 'template'), 'blind.cfg')
+    blind_cfg_path = os.path.join(os.path.join(os.path.join(current_path, 'bin'), 'template'), 'blind.cfg')
 
     #parameter_dict = parameter_file_read(pchem_cfg_path) 
     parameter_dict = data_preprocess(pchem_cfg_path, current_path)
@@ -95,14 +95,27 @@ def blind_search(current_path):
     new_ini_path = expand_modification_ini(mass_diff_pair_rank, mass_diff_dict, mod_static_dict, current_path, ini_path, refine_ion_list, exist_ion_flag_list)
     
     # 生成限定式参数文件 
-    close_cfg_path = os.path.join(os.path.join(current_path, 'template'), 'close.cfg')
+    close_cfg_path = os.path.join(os.path.join(os.path.join(current_path, 'bin'), 'template'), 'close.cfg')
     close_cfg_write(close_cfg_path, current_path, parameter_dict, mass_diff_pair_rank)
     # print(mass_diff_pair_rank)
     # print(mass_diff_list)
     os.chdir(current_path)
-    with open('mod_list.txt', 'w', encoding='utf-8') as f: 
-        for m in mass_diff_pair_rank:
-            f.write(m + '\n') 
+    
+    reporting_result_path = os.path.join(parameter_dict['output_path'], 'reporting_summary')
+    if not os.path.exists(reporting_result_path): 
+        os.makedirs(reporting_result_path) 
+
+    if parameter_dict['use_close_search'] == 'True': 
+        with open('mod_list.txt', 'w', encoding='utf-8') as f: 
+            for m in mass_diff_pair_rank:
+                f.write(m + '\n') 
+    else:
+        delete_file(current_path, 'modification-null.ini')
+        delete_file(current_path, 'mass_diff_list.txt')
+        delete_file(current_path, 'pChem.metric')
+        delete_file(current_path, 'modification-new.ini') 
+        remove_file(current_path, 'heat_map.pdf', reporting_result_path)
+    remove_file(current_path, 'pChem.summary', reporting_result_path)
 
 
 

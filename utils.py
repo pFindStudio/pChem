@@ -1,4 +1,5 @@
-import os 
+import os
+import shutil  
 
 # 读取参数行内容并返回
 def parameter_pick(line):
@@ -60,6 +61,8 @@ def parameter_file_read(path):
             parameter_dict['side_position'] = parameter_pick(lines[i]) 
         if 'activation_type' in lines[i]:
             parameter_dict['activation_type'] = parameter_pick(lines[i]) 
+        if 'use_close_search' in lines[i]: 
+            parameter_dict['use_close_search'] = parameter_pick(lines[i]) 
         if 'msmstype' in lines[i]: 
             parameter_dict['msmstype'] = parameter_pick(lines[i])
     return parameter_dict
@@ -486,3 +489,17 @@ def add_mass_list(mass_diff_pair_rank, parameter_dict):
         mm = str(int(m) + mass_diff)
         new_mass_pair_rank.append(mm) 
     return new_mass_pair_rank 
+
+
+def delete_file(current_path, file_name):
+    file_path = os.path.join(current_path, file_name)
+    if os.path.exists(file_path): 
+        os.remove(file_path)
+
+def remove_file(current_path, file_name, reporting_res_path): 
+    file_path = os.path.join(current_path, file_name) 
+    target_file_path = os.path.join(reporting_res_path, file_name)
+    if os.path.exists(target_file_path):
+        os.remove(target_file_path)
+    if os.path.exists(file_path): 
+        shutil.move(file_path, reporting_res_path)

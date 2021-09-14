@@ -9,7 +9,7 @@ def open_search(current_path):
     # 参数文件的路径
     
     pchem_cfg_path = os.path.join(current_path, 'pChem.cfg')
-    open_cfg_path = os.path.join(os.path.join(current_path, 'template'), 'open.cfg')
+    open_cfg_path = os.path.join(os.path.join(os.path.join(current_path, 'bin'), 'template'), 'open.cfg')
     
     # 读取参数
     parameter_dict = parameter_file_read(pchem_cfg_path)

@@ -18,7 +18,8 @@ def parameter_select(cfg_path):
 
 
 def data_preprocess(cfg_path, current_path): 
-    pparse_file_path = os.path.join(current_path, 'pParse')
+    pparse_file_path = os.path.join(current_path, 'bin')
+    pparse_file_path = os.path.join(pparse_file_path, 'pParse')
     pparse_exe_path = os.path.join(pparse_file_path, 'pParse.exe') 
 
     parameter_dict = parameter_file_read(cfg_path) 

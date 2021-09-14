@@ -311,15 +311,18 @@ def summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, mass_
 # 只输出轻标修饰到结果文件 
 # 根据mass_diff_pair_pair输出结果
 def new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, parameter_dict, unimod_dict, pattern='blind'): 
+    
+    
     mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, rank_dict, label_dict, mass_diff_rank, mass_diff_pair_rank, unimod_list, ppm_error_dict = \
         mass_refine(mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, parameter_dict, unimod_dict, pattern) 
     
     lines = [] 
     lines.append('Rank \tMass Shift \tIsotopic Label \tPeptide Total \tPSM Total \tPeptide L|H \tPSM L|H \
                 \tTop1 Site \tTop1 Probability \tAccurate Mass \tSite (Location /Probability)-Others \n')
-    # print(mass_diff_pair_rank)
+    print('matched:', mass_diff_pair_rank)
     
-    idx = 1
+    idx = 1 
+    
     for mass_pair in mass_diff_pair_rank: 
         light_mod = mass_pair[0]
         heavy_mod = mass_pair[1] 
@@ -341,6 +344,7 @@ def new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, m
     else:
         summary_path = os.path.join(current_path, 'pChem-close.summary')
 
+    
     with open(summary_path, 'w', encoding='utf-8') as f:
         for line in lines:
             f.write(line) 
@@ -355,7 +359,7 @@ def new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, m
         if pattern == 'blind':
             heat_map_plot(current_path, filter_mod, mod_static_dict, mod_number_dict) 
     
-    # print(filter_mod)
+    
     # 对所有的筛选后的未知修饰做中性丢失
     refine_ion_list = [] 
     exist_ion_flag_list = []
@@ -470,9 +474,11 @@ def mass_refine(mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, param
             new_mass_diff_dict[simple_mass] = mass_diff_dict[mass] 
     # rank_dict, label_dict, mass_diff_rank, mass_diff_pair_rank = label_determine(new_mod_number_dict, int_mass_list, int(parameter_dict['mass_diff_diff'])) 
     # min_num = modification_filter_frequency(new_mod_number_dict, parameter_dict) 
+    
     rank_dict, label_dict, mass_diff_rank, mass_diff_pair_rank, ppm_error_dict = accurate_label_determine(new_mod_number_dict, new_mass_diff_dict, parameter_dict, pattern)
+    # print('new', mass_diff_pair_rank)
     unimod_list = unimod_match(unimod_dict, mass_diff_pair_rank, new_mass_diff_dict)
-    print(mass_diff_rank)
+    print('total: ', mass_diff_rank)
     return new_mod_static_dict, new_mod_number_dict, new_mod2pep, new_mass_diff_dict, rank_dict, label_dict, mass_diff_rank, mass_diff_pair_rank, unimod_list, ppm_error_dict   
 
 
@@ -519,7 +525,7 @@ def accurate_label_determine(mod_number_dict, mass_diff_dict, parameter_dict, pa
             #    continue 
             ppm_error = ppm_calculate(mass_diff_dict[mod], mass_diff_dict[pair_mod], parameter_dict['mass_of_diff_diff'])
             #print(pattern)
-            if ppm_error <= parameter_dict['mass_diff_diff_range'] or pattern != 'blind': 
+            if ppm_error <= parameter_dict['mass_diff_diff_range'] or (pattern != 'blind' and ppm_error < 500): 
                 if mass_diff_dict[mod] < mass_diff_dict[pair_mod]: 
                     label_dict[mod] = 'L'
                     label_dict[pair_mod] = 'H'
@@ -680,7 +686,9 @@ def unimod_dict_generate(modification_dict):
 
 # 读取解释性的修饰 
 def explain_dict_generate(current_path): 
-    explain_file = os.path.join(current_path, 'explain_modification.ini') 
+    bin_path = os.path.join(current_path, 'bin')
+    template_path = os.path.join(bin_path, 'template')
+    explain_file = os.path.join(template_path, 'explain_modification.ini') 
     with open(explain_file, 'r', encoding='utf') as f: 
         lines = f.readlines() 
     explain_dict = {}
@@ -713,7 +721,11 @@ def summary_filter(current_path, parameter_dict, filter_mod, pattern, summary_pa
         if len(line) < 5:
             break 
         total_psm += int(line.split('\t')[4]) 
-    min_psm = parameter_dict['filter_frequency'] * total_psm * 0.01 
+    if pattern == 'blind':
+        min_psm = parameter_dict['filter_frequency'] * total_psm * 0.01 
+    else:
+        # 限定式不需要过滤PSM
+        min_psm = 0
     new_lines = []
     new_lines.append(lines[0]) 
     i = 1 
@@ -730,7 +742,7 @@ def summary_filter(current_path, parameter_dict, filter_mod, pattern, summary_pa
         for line in new_lines: 
             f.write(line) 
     
-    if pattern == 'blind': 
+    if pattern == 'blind' and parameter_dict['use_close_search'] == 'True': 
         # print('plot radar!')
         metric_evaluation(current_path, parameter_dict, summary_path, new_filter_mod)  
 
