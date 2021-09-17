@@ -19,12 +19,14 @@ def new_close_search(current_path):
     if not os.path.exists(close_output_path): 
         os.makedirs(close_output_path) 
 
+    
     # 进行限定式搜索 
     bin_path, exe_path = search_exe_path(parameter_dict)
     cmd = exe_path + ' ' + close_cfg_path 
     os.chdir(bin_path)
     receive = os.system(cmd)
     print(receive) 
+    
     
     os.chdir(current_path)
     # 对限定式结果进行分析 
@@ -56,7 +58,8 @@ def new_close_search(current_path):
     os.chdir(current_path)
     
     reporting_result_path = os.path.join(parameter_dict['output_path'], 'reporting_summary')
-    
+    close_result_path = os.path.join(parameter_dict['output_path'], 'close')
+
     delete_file(current_path, 'modification-null.ini')
     delete_file(current_path, 'modification-new.ini')
     delete_file(current_path, 'mass_diff_list.txt')
@@ -65,7 +68,7 @@ def new_close_search(current_path):
     delete_file(current_path, 'pChem.summary')
     delete_file(current_path, 'modification-new.ini') 
     delete_file(current_path, 'heat_map.pdf') 
-    delete_file(current_path, 'pChem-close.summary')
+    remove_file(current_path, 'pChem-close.summary', close_result_path)
     remove_file(current_path, 'radar.pdf', reporting_result_path)
 
 

@@ -114,7 +114,7 @@ def blind_search(current_path):
         delete_file(current_path, 'mass_diff_list.txt')
         delete_file(current_path, 'pChem.metric')
         delete_file(current_path, 'modification-new.ini') 
-        remove_file(current_path, 'heat_map.pdf', reporting_result_path)
+    remove_file(current_path, 'heat_map.pdf', reporting_result_path)
     remove_file(current_path, 'pChem.summary', reporting_result_path)
 
 

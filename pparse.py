@@ -58,6 +58,7 @@ def data_preprocess(cfg_path, current_path):
         i += 1
     parameter_dict['msms_path'] = pf2_path_list 
     # print(parameter_dict) 
+    parameter_dict['close_mass_diff_number'] = 100
     return parameter_dict 
 
 

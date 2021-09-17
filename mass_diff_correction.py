@@ -323,10 +323,13 @@ def new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, m
     
     idx = 1 
     
+    
+
     for mass_pair in mass_diff_pair_rank: 
         light_mod = mass_pair[0]
         heavy_mod = mass_pair[1] 
         local_list = mod_static_dict[light_mod].most_common() 
+        
         Top1_site = local_list[0][0]
         Top1_pro =  str(round(local_list[0][1]/mod_number_dict[light_mod],3)) 
         Others = '' 
@@ -754,7 +757,6 @@ def summary_filter(current_path, parameter_dict, filter_mod, pattern, summary_pa
 # Identification efficiency： mod_psm /  all_psm, Modification uniformity：max_mod_psm / mod_psm, Position selectivity
 def metric_evaluation(current_path, parameter_dict, summary_path, new_filter_mod): 
     # print(current_path) 
-    # print(parameter_dict)
     blind_res = os.path.join(parameter_dict['output_path'], 'blind') 
     blind_res = os.path.join(blind_res, 'pFind.summary') 
     
@@ -803,6 +805,8 @@ def metric_evaluation(current_path, parameter_dict, summary_path, new_filter_mod
 
 
 def update_pos_selectivity(x, parameter_dict, new_filter_mod): 
+    #print('new filter', new_filter_mod) 
+    #print(position_dict)
     psm_res = os.path.join(parameter_dict['output_path'], 'blind') 
     psm_res = os.path.join(psm_res, 'pFind-Filtered.spectra') 
     mass_diff_list = [] 
@@ -838,9 +842,15 @@ def update_pos_selectivity(x, parameter_dict, new_filter_mod):
                     mod_position_dict[mod_name].append(sequence[pos-1])
     
     top_num = 0 
-    for mod_name in mass_diff_list:
-        counter = Counter(mod_position_dict[mod_name])
-        top_num += counter.most_common()[0][1] 
+    max_pos = 'C'
+    for i in range(len(mass_diff_list)):
+        mod_name = mass_diff_list[i] 
+        
+        counter = Counter(mod_position_dict[mod_name]) 
+        if i == 0: 
+            max_pos = counter.most_common()[0][0]
+        
+        top_num += counter[max_pos]
         
     x[2] = float(top_num/ total_psm_num) * 100
     return x 
