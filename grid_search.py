@@ -42,7 +42,7 @@ def toy_data_generate(parameter_dict):
         mass = id2mass[id] 
         flag = False 
         for p_mass in mass_list: 
-            if ppm_calculate(mass, p_mass, parameter_dict['mass_of_diff_diff']) < 1000: 
+            if ppm_calculate(mass, p_mass, parameter_dict['mass_of_diff_diff']) < 50: 
                 flag = True 
                 break
         

@@ -440,6 +440,11 @@ def expand_modification_ini(mass_diff_pair_rank, mass_diff_dict, mod_static_dict
     # 末尾添加新增的修饰
     num = int(num) + 1 
     ion_num = 0 
+
+    #print(mass_diff_pair_rank)
+    #print(exist_ion_flag_list)
+    #print(refine_ion_list)
+
     for key in mass_diff_pair_rank: 
         short_key = key.split('.')[0]
         
@@ -455,8 +460,9 @@ def expand_modification_ini(mass_diff_pair_rank, mass_diff_dict, mod_static_dict
              
             #line2 = key + '=ABCDEFGHIJKLMNOPQRSTUVWXYZ NORMAL ' +  str(mass_diff_dict[key])\
             #    + ' ' + str(mass_diff_dict[key]) 
-        # 是否需要加入中性丢失
-        if exist_ion_flag_list[ion_num//2] == True and ion_num < len(refine_ion_list) * 2: 
+        # 是否需要加入中性丢失 
+        
+        if exist_ion_flag_list[ion_num//2] == True and ion_num < len(refine_ion_list) * 2 and len(refine_ion_list[ion_num//2][0]) >= 1: 
             if ion_num % 2 == 0: 
                 line2 += ' 1 ' + str(refine_ion_list[ion_num//2][0][0]) + ' ' + str(refine_ion_list[ion_num//2][0][0]) + ' pFindDELTA \n' 
             else:

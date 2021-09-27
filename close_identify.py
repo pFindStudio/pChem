@@ -70,6 +70,8 @@ def new_close_search(current_path):
     delete_file(current_path, 'heat_map.pdf') 
     remove_file(current_path, 'pChem-close.summary', close_result_path)
     remove_file(current_path, 'radar.pdf', reporting_result_path)
+    # 出现[]可能是因为有个1000ppm的限制 
+
 
 
 

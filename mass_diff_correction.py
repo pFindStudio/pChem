@@ -353,8 +353,8 @@ def new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, m
             f.write(line) 
     # 删除PSM 
     filter_mod = [mod[0] for mod in mass_diff_pair_rank] 
-    
-    filter_mod = summary_filter(current_path, parameter_dict, filter_mod, pattern, summary_path) 
+    if pattern == 'blind': 
+        filter_mod = summary_filter(current_path, parameter_dict, filter_mod, pattern, summary_path) 
     # 同时保存热力图 
     if len(lines) < 2: 
         print('The number of unknown modification is none, please expand the error range.')
@@ -392,7 +392,7 @@ def add_ion_summary(summary_path, refine_ion_list, exist_ion_flag_list):
     if 'DFLs' not in  lines[0]: 
         lines[0] = lines[0][:-1] + ' \tDFLs \n' 
     for i in range(len(exist_ion_flag_list)): 
-        if exist_ion_flag_list[i] == True: 
+        if exist_ion_flag_list[i] == True and len(refine_ion_list[i][0]) >= 1: 
             add_info = list2string(refine_ion_list[i][0]) + ' |' + list2string(refine_ion_list[i][1]) + '\n'
             lines[i+1] = lines[i+1][:-1] + '\t' + add_info 
     with open(summary_path, 'w', encoding='utf-8') as f: 
@@ -528,7 +528,7 @@ def accurate_label_determine(mod_number_dict, mass_diff_dict, parameter_dict, pa
             #    continue 
             ppm_error = ppm_calculate(mass_diff_dict[mod], mass_diff_dict[pair_mod], parameter_dict['mass_of_diff_diff'])
             #print(pattern)
-            if ppm_error <= parameter_dict['mass_diff_diff_range'] or (pattern != 'blind' and ppm_error < 500): 
+            if ppm_error <= parameter_dict['mass_diff_diff_range'] or (pattern != 'blind' and ppm_error < 1000): 
                 if mass_diff_dict[mod] < mass_diff_dict[pair_mod]: 
                     label_dict[mod] = 'L'
                     label_dict[pair_mod] = 'H'
