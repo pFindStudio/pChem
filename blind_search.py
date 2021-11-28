@@ -19,7 +19,7 @@ def blind_search(current_path):
     blind_cfg_path = os.path.join(os.path.join(os.path.join(current_path, 'bin'), 'template'), 'blind.cfg')
 
     #parameter_dict = parameter_file_read(pchem_cfg_path) 
-    parameter_dict = data_preprocess(pchem_cfg_path, current_path)
+    parameter_dict = data_preprocess(pchem_cfg_path, current_path) 
     
     # 读取所有的modification作为查找字典 
     modification_path = modification_ini_path(parameter_dict)
@@ -49,7 +49,7 @@ def blind_search(current_path):
     receive = os.system(cmd) 
     print(receive)
     
-    
+
     # 读取鉴定结果，生成位置修饰的候选列表
     mass_diff_list_generate(res_path, current_path)
     mass_diff_list, mod2pep = mass_diff_read(current_path) 
@@ -69,17 +69,17 @@ def blind_search(current_path):
     # mod2pep 修饰名字 -> peptide 
 
     # 过滤小于200和复数修饰 
-    name2mass, mass_diff_list = small_delta_filter(mass_diff_list, parameter_dict['min_mass_modification']) 
+    name2mass, mass_diff_list = small_delta_filter(mass_diff_list, parameter_dict) 
     mod_static_dict, mod_number_dict = mass_static(blind_path, current_path, mass_diff_list, parameter_dict['side_position']) 
 
     # 计算精确质量 
     #system_correct={mean, median}, mod_correct={mean, median, weight}
-    mass_diff_dict = mass_correct(current_path, blind_path, mass_diff_list, system_correct='mean', mod_correct='mean') 
+    mass_diff_dict, sim_mod_number_dict = mass_correct(current_path, blind_path, mass_diff_list, parameter_dict, system_correct='mean', mod_correct='mean') 
     #mass_diff_dict = mass_correct(current_path, blind_path, mass_diff_list, system_correct='median', mod_correct='median') 
-
+    
 
     # 将统计结果写入结果文件 中性丢失的计算 
-    mass_diff_pair_rank, refine_ion_list, exist_ion_flag_list = new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, parameter_dict, explain_dict) 
+    mass_diff_pair_rank, refine_ion_list, exist_ion_flag_list = new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, parameter_dict, explain_dict, sim_mod_number_dict) 
     #print(refine_ion_list)
 
     # 删选结果文件 
@@ -91,7 +91,7 @@ def blind_search(current_path):
     mass_diff_pair_rank = new_mass_list_generate(mass_diff_pair_rank, mass_diff_list) 
     if parameter_dict['close_mass_diff_number'] < len(mass_diff_pair_rank):
         mass_diff_pair_rank = mass_diff_pair_rank[:parameter_dict['close_mass_diff_number']]
-    print(mass_diff_pair_rank)
+    # print(mass_diff_pair_rank)
     new_ini_path = expand_modification_ini(mass_diff_pair_rank, mass_diff_dict, mod_static_dict, current_path, ini_path, refine_ion_list, exist_ion_flag_list)
     
     # 生成限定式参数文件 
@@ -106,9 +106,10 @@ def blind_search(current_path):
         os.makedirs(reporting_result_path) 
 
     if parameter_dict['use_close_search'] == 'True': 
+        # print(mass_diff_dict)
         with open('mod_list.txt', 'w', encoding='utf-8') as f: 
             for m in mass_diff_pair_rank:
-                f.write(m + '\n') 
+                f.write(m + ' ' + str(mass_diff_dict[m]) + '\n') 
     else:
         delete_file(current_path, 'modification-null.ini')
         delete_file(current_path, 'mass_diff_list.txt')

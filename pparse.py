@@ -1,4 +1,4 @@
-from utils import parameter_pick, parameter_modify, parameter_file_read
+from utils import parameter_pick, parameter_modify, parameter_file_read, pfind_path_find
 import os 
 
 
@@ -18,12 +18,13 @@ def parameter_select(cfg_path):
 
 
 def data_preprocess(cfg_path, current_path): 
-    pparse_file_path = os.path.join(current_path, 'bin')
+    pparse_file_path = os.path.join(current_path, 'bin') 
+    pfind_file_path = os.path.join(pparse_file_path, 'pFind')
     pparse_file_path = os.path.join(pparse_file_path, 'pParse')
     pparse_exe_path = os.path.join(pparse_file_path, 'pParse.exe') 
 
     parameter_dict = parameter_file_read(cfg_path) 
-    print(parameter_dict)
+    
     
     pparse_output_path = os.path.join(parameter_dict['output_path'], 'pParse')
     if not os.path.exists(pparse_output_path): 
@@ -49,16 +50,30 @@ def data_preprocess(cfg_path, current_path):
     print(parameter_dict['msms_path']) 
     print(pf2_name_list)
     parameter_dict['msmstype'] = 'PF2'
-    assert len(parameter_dict['msms_path']) == len(pf2_name_list) 
+    # assert len(parameter_dict['msms_path']) == len(pf2_name_list) 
+    if len(parameter_dict['msms_path']) != len(pf2_name_list): 
+        print('number of pf2 not equal to msms_path, there may be exist bug.')
     pf2_path_list = []
     i = 0 
     for msms_path in parameter_dict['msms_path']:
         prefix, _ = msms_path.split('=') 
         pf2_path_list.append(prefix + '=' + pf2_name_list[i] + '\n') 
         i += 1
+    while i < len(pf2_name_list): 
+        pf2_path_list.append('msmspath' + str(i+1)+'='+pf2_name_list[i] + '\n')
+        i += 1
     parameter_dict['msms_path'] = pf2_path_list 
     # print(parameter_dict) 
-    parameter_dict['close_mass_diff_number'] = 100
+    parameter_dict['close_mass_diff_number'] = 100 
+    parameter_dict['msms_num'] = len(pf2_name_list)
+    parameter_dict['mass_calibration'] = 'True' 
+
+    # target_path = [os.getcwd()]
+    # print(parameter_dict)
+    #pfind_path_find(parameter_dict['pfind_install_path'], target_path)
+    # parameter_dict['pfind_install_path'] = target_path[1] 
+    parameter_dict['pfind_install_path'] = pfind_file_path
+    print(parameter_dict)
     return parameter_dict 
 
 

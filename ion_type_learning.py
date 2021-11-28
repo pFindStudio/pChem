@@ -313,6 +313,7 @@ def feature_pair_find(position_list, peak_dict, mass_diff):
 
 # 离子类型学习 
 def ion_type_determine(current_path, modification_list, modification_dict, parameter_dict): 
+    
     pchem_cfg_path = os.path.join(current_path, 'pChem.cfg')
     # parameter_dict = parameter_file_read(pchem_cfg_path) 
     # print(parameter_dict)
@@ -346,6 +347,7 @@ def ion_type_determine(current_path, modification_list, modification_dict, param
     # 筛选有效的PSM 
     for modification in modification_list:
         # pfind-filtered line 
+        print('calculate the ion of ', modification)
         mod = modification.split('_')[2] 
         int_mod = int(mod)
         mod2ion[mod] = [] 

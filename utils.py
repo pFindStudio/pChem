@@ -45,6 +45,8 @@ def parameter_file_read(path):
             parameter_dict['open_flag'] = parameter_pick(lines[i])
         if 'common_modification_list' in lines[i]:
             parameter_dict['common_modification_list'] = parameter_pick(lines[i]) 
+        if 'mass_calibration' in lines[i]:
+            parameter_dict['mass_calibration'] = parameter_pick(lines[i]) 
         if 'mass_of_diff_diff' in lines[i]:
             parameter_dict['mass_of_diff_diff'] = float(parameter_pick(lines[i])) 
         if 'common_modification_number' in lines[i]:
@@ -53,8 +55,10 @@ def parameter_file_read(path):
             parameter_dict['close_mass_diff_number'] = int(parameter_pick(lines[i])) 
         if 'min_mass_modification' in lines[i]:
             parameter_dict['min_mass_modification'] = float(parameter_pick(lines[i]))
+        if 'max_mass_modification' in lines[i]:
+            parameter_dict['max_mass_modification'] = float(parameter_pick(lines[i]))
         if 'mass_diff_diff_range' in lines[i]:
-            parameter_dict['mass_diff_diff_range'] = int(parameter_pick(lines[i])) 
+            parameter_dict['mass_diff_diff_range'] = float(parameter_pick(lines[i])) 
         if 'filter_frequency' in lines[i]: 
             parameter_dict['filter_frequency'] = float(parameter_pick(lines[i])) 
         if 'side_position' in lines[i]: 
@@ -92,7 +96,9 @@ def open_cfg_write(cfg_path, parameter_dict):
                 os.mkdir(res_path)
             lines[i] = parameter_modify(lines[i], res_path)
         if 'outputname' in lines[i]:
-            lines[i] = parameter_modify(lines[i], 'open')
+            lines[i] = parameter_modify(lines[i], 'open') 
+        if 'maxdelta' in lines[i]: 
+            lines[i] = parameter_modify(lines[i], str(parameter_dict['max_mass_modification']))
         if 'msmsnum' in lines[i]:
             lines[i] = parameter_modify(lines[i], str(parameter_dict['msms_num']))
             new_lines.append(lines[i])
@@ -141,7 +147,9 @@ def blind_cfg_write(cfg_path, current_path, parameter_dict, common_modification_
                 os.mkdir(res_path)
             lines[i] = parameter_modify(lines[i], res_path)
         if 'outputname' in lines[i]:
-            lines[i] = parameter_modify(lines[i], 'blind')
+            lines[i] = parameter_modify(lines[i], 'blind') 
+        if 'maxdelta' in lines[i]: 
+            lines[i] = parameter_modify(lines[i], str(parameter_dict['max_mass_modification']))
         if 'msmsnum' in lines[i]:
             lines[i] = parameter_modify(lines[i], str(parameter_dict['msms_num']))
             new_lines.append(lines[i])
@@ -190,6 +198,8 @@ def close_cfg_write(cfg_path, current_path, parameter_dict, mass_diff_pair_rank)
             lines[i] = parameter_modify(lines[i], res_path)
         if 'outputname' in lines[i]:
             lines[i] = parameter_modify(lines[i], 'close')
+        if 'maxdelta' in lines[i]: 
+            lines[i] = parameter_modify(lines[i], str(parameter_dict['max_mass_modification']))
         if 'msmsnum' in lines[i]:
             lines[i] = parameter_modify(lines[i], str(parameter_dict['msms_num']))
             new_lines.append(lines[i])
@@ -509,3 +519,15 @@ def remove_file(current_path, file_name, reporting_res_path):
         os.remove(target_file_path)
     if os.path.exists(file_path): 
         shutil.move(file_path, reporting_res_path)
+
+
+# 搜索pFind所在路劲
+def pfind_path_find(path, target_path, name='pFind.exe.config'):
+    for item in os.listdir(path):
+        item_path = os.path.join(path, item)
+        if os.path.isdir(item_path):
+            pfind_path_find(item_path, target_path, name) 
+        elif os.path.isfile(item_path):
+            if name in item: 
+                target_path.append(item_path[:-21])
+                

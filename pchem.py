@@ -1,15 +1,15 @@
 from blind_search import blind_search 
 from close_identify import new_close_search 
-from utils import parameter_file_read 
+from utils import parameter_file_read, pfind_path_find
 
 import os 
 import shutil 
 from argparse import ArgumentParser 
 import time 
 
-def main():
+def run():
     current_path = os.getcwd() 
-    print('Welcome to use pChem!')
+    print('Welcome to use pChem! (version 1.1)')
     
     parser = ArgumentParser() 
     parser.add_argument("--fasta_path", type=str, default='None', help='path to the fasta file')
@@ -19,12 +19,27 @@ def main():
     args = parser.parse_args() 
     
     cfg_path = os.path.join(current_path, 'pChem.cfg') 
-    parameter_dict = parameter_file_read(cfg_path)
-    print(parameter_dict)
+    parameter_dict = parameter_file_read(cfg_path) 
+    '''
+    target_path = [os.getcwd()]
+    # print(parameter_dict)
+    pfind_path_find(parameter_dict['pfind_install_path'], target_path)
+    if len(target_path) == 1: 
+        print('please set the correct pfind install path!') 
+        return 
+    if len(target_path) > 2: 
+        print('More than one pFind are installed in current path, please set in detail!')
+        return  
+    parameter_dict['pfind_install_path'] = target_path[1]
+    '''
+
+    
     # 判断参数的正确性
+    '''
     if os.path.exists(parameter_dict['pfind_install_path']) == False: 
         print('pfind install path is not exist!') 
         return
+    '''
     if os.path.exists(parameter_dict['output_path']) == False: 
         print('output path is not exist!')
         return 
@@ -44,7 +59,7 @@ def main():
  
     start_time = time.time() 
     blind_search(current_path) 
-    blind_time = time.time()
+    blind_time = time.time()  
     if parameter_dict['use_close_search'] == 'True':
         new_close_search(current_path) 
         close_time = time.time() 
@@ -52,10 +67,10 @@ def main():
         print('restricted search cost time (s): ', close_time - blind_time)
     else:
         print('blind search cost time (s): ', blind_time - start_time)
-
+    
     
     
 
 if __name__ == "__main__": 
-    main()
+    run()
     os.system("pause")
