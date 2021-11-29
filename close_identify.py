@@ -13,7 +13,9 @@ def new_close_search(current_path):
     pchem_cfg_path = os.path.join(current_path, 'pChem.cfg')
     close_cfg_path = os.path.join(os.path.join(os.path.join(current_path, 'bin'), 'template'), 'close.cfg') 
     # parameter_dict = parameter_file_read(pchem_cfg_path) 
-    parameter_dict = data_preprocess(pchem_cfg_path, current_path)
+    parameter_dict = data_preprocess(pchem_cfg_path, current_path) 
+    original_output_path = parameter_dict['output_path']
+    parameter_dict['output_path'] = os.path.join(original_output_path, 'source')
 
     close_output_path = os.path.join(parameter_dict['output_path'], 'close')
     if not os.path.exists(close_output_path): 
@@ -67,7 +69,7 @@ def new_close_search(current_path):
     
     os.chdir(current_path)
     
-    reporting_result_path = os.path.join(parameter_dict['output_path'], 'reporting_summary')
+    reporting_result_path = os.path.join(original_output_path, 'reporting_summary')
     close_result_path = os.path.join(parameter_dict['output_path'], 'close')
 
     

@@ -10,6 +10,7 @@ from mass_diff_correction import mass_correct, small_delta_filter, \
     summary_filter, explain_dict_generate 
 from ion_type_learning import ion_type_determine 
 from pparse import data_preprocess
+import shutil 
 
 
 def blind_search(current_path):
@@ -20,7 +21,9 @@ def blind_search(current_path):
 
     #parameter_dict = parameter_file_read(pchem_cfg_path) 
     parameter_dict = data_preprocess(pchem_cfg_path, current_path) 
-    
+    original_output_path = parameter_dict['output_path']
+    parameter_dict['output_path'] = os.path.join(original_output_path, 'source')
+
     # 读取所有的modification作为查找字典 
     modification_path = modification_ini_path(parameter_dict)
     modification_dict = modification_ini_dict(modification_path)
@@ -101,7 +104,7 @@ def blind_search(current_path):
     # print(mass_diff_list)
     os.chdir(current_path)
     
-    reporting_result_path = os.path.join(parameter_dict['output_path'], 'reporting_summary')
+    reporting_result_path = os.path.join(original_output_path, 'reporting_summary')
     if not os.path.exists(reporting_result_path): 
         os.makedirs(reporting_result_path) 
 
@@ -115,6 +118,10 @@ def blind_search(current_path):
         delete_file(current_path, 'mass_diff_list.txt')
         delete_file(current_path, 'pChem.metric')
         delete_file(current_path, 'modification-new.ini') 
+    summary_filter_path = os.path.join(current_path, 'pChem.summary')
+    blind_result_path = os.path.join(parameter_dict['output_path'], 'blind')
+    blind_summary_path = os.path.join(blind_result_path, 'pChem.blind.summary')
+    shutil.copyfile(summary_filter_path, blind_summary_path)
     remove_file(current_path, 'heat_map.pdf', reporting_result_path)
     remove_file(current_path, 'pChem.summary', reporting_result_path)
 

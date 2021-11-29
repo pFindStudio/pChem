@@ -26,7 +26,7 @@ def data_preprocess(cfg_path, current_path):
     parameter_dict = parameter_file_read(cfg_path) 
     
     
-    pparse_output_path = os.path.join(parameter_dict['output_path'], 'pParse')
+    pparse_output_path = os.path.join(os.path.join(parameter_dict['output_path'], 'source'), 'pParse')
     if not os.path.exists(pparse_output_path): 
         os.makedirs(pparse_output_path) 
     
