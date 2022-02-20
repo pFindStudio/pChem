@@ -18,10 +18,6 @@ The software can be downloaded from [google drive](https://drive.google.com/file
 
 # Requirements 
 
-For exe version: 
-
-* new version of pFind 
-
 For python version: 
 
 * new version of pFind 
