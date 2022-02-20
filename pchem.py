@@ -53,7 +53,7 @@ def run():
             return 
 
     
-    pparse_output_path = os.path.join(parameter_dict['output_path'], 'pParse') 
+    pparse_output_path = os.path.join(os.path.join(parameter_dict['output_path'], 'source'), 'pParse')
     if os.path.exists(pparse_output_path): 
         shutil.rmtree(pparse_output_path)
  
@@ -73,4 +73,4 @@ def run():
 
 if __name__ == "__main__": 
     run()
-    os.system("pause")
+    # os.system("pause")

@@ -100,6 +100,7 @@ def iterative_mass_compute(mass_diff, original_unknown_list, light_heavy_dict=No
         #if mode == 'heavy':
         #    if mass + mass_diff_diff >= target_mass - 0.01 and mass + mass_diff_diff <= target_mass + 0.01: 
         #        data.append(mass + mass_diff_diff) 
+    print(data)
     spectrum_num = len(data)
     if len(data) == 0: 
         return 0.0, 0
@@ -127,6 +128,7 @@ def iterative_mass_compute(mass_diff, original_unknown_list, light_heavy_dict=No
         mu0 = mu
         times += 1 
     return mu0, spectrum_num
+
 
 
 # 计算修饰的精确质量 
@@ -633,8 +635,16 @@ def add_ion_summary(summary_path, refine_ion_list, exist_ion_flag_list):
         if exist_ion_flag_list[i] == True and len(refine_ion_list[i][0]) >= 1: 
             add_info = list2string(refine_ion_list[i][0]) + ' |' + list2string(refine_ion_list[i][1]) + '\n'
             lines[i+1] = lines[i+1][:-1] + '\t' + add_info 
+    sort_lines = sorted(lines[1:], key=lambda k: int(k.strip().split('\t')[5]), reverse=True) 
+    idx = 0 
+    new_sort_lines = [lines[0]]
+    for line in sort_lines:
+        new_line = str(idx) + '\t' + line.split('\t', 1)[1] 
+        idx += 1
+        new_sort_lines.append(new_line)
+
     with open(summary_path, 'w', encoding='utf-8') as f: 
-        for line in lines: 
+        for line in new_sort_lines: 
             f.write(line)
 
 
@@ -793,7 +803,7 @@ def accurate_label_determine(mod_number_dict, mass_diff_dict, parameter_dict, pa
             #    continue 
             # 这里改成了绝对值限制 
             ppm_error = abs_ppm_calculate(mass_diff_dict[mod], mass_diff_dict[pair_mod], parameter_dict['mass_of_diff_diff'])
-            #print(pattern)
+            # print(pattern)
             if ppm_error <= parameter_dict['mass_diff_diff_range'] or (pattern != 'blind' and ppm_error < 0.01): 
                 if mass_diff_dict[mod] < mass_diff_dict[pair_mod]: 
                     label_dict[mod] = 'L'

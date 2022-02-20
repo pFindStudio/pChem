@@ -7,7 +7,7 @@ from utils import parameter_file_read, mass_diff_read, expand_modification_ini, 
 from mass_diff_correction import close_mass_correct, small_delta_filter, mass_diff_diff_filter, mass_static, summary_write, \
     mass_select, explain_dict_generate, new_summary_write, update_identification_efficiency    
 from pparse import data_preprocess
-
+from confidence_set import accurate_mass_for_result_file
 
 def new_close_search(current_path): 
     pchem_cfg_path = os.path.join(current_path, 'pChem.cfg')
@@ -53,11 +53,14 @@ def new_close_search(current_path):
     # print('mass', mass_diff_list)
     
     close_path = os.path.join(parameter_dict['output_path'], 'close') 
+    pfind_summary_path = os.path.join(close_path, 'pFind.summary')
     close_res_path = os.path.join(close_path, 'pFind-Filtered.spectra') 
     mod_static_dict, mod_number_dict = mass_static(close_res_path, current_path, mass_diff_list, parameter_dict['side_position'])
     mass_diff_dict, sim_mod_dict = close_mass_correct(current_path, close_res_path, mass_diff_list, parameter_dict, \
                                     mass_diff_blind_dict, total_name_dict) 
-    print('most', mass_diff_dict)
+    print('most', mass_diff_dict) 
+    accurate_mass_for_result_file(pfind_summary_path, mass_diff_dict)
+
     explain_dict = explain_dict_generate(current_path)
     close_pfind_path = os.path.join(close_path, 'pFind.summary') 
     mod2pep = mod2pep_generate(close_pfind_path, mass_diff_list)
@@ -118,8 +121,17 @@ def summary_file_combine(close_summary_path, original_path):
         for token in blind_elem:
             line += token + '\t' 
         new_lines.append(line[:-1]) 
+
+    sort_lines = sorted(new_lines[1:], key=lambda k: int(k.strip().split('\t')[5]), reverse=True) 
+    idx = 0 
+    new_sort_lines = [new_lines[0]]
+    for line in sort_lines:
+        new_line = str(idx) + '\t' + line.split('\t', 1)[1] 
+        idx += 1
+        new_sort_lines.append(new_line)
+
     with open(original_path, 'w', encoding='utf-8') as f:
-        for line in new_lines: 
+        for line in new_sort_lines: 
             f.write(line)
 
 

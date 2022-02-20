@@ -6,6 +6,7 @@ from collections import Counter
 import numpy as np 
 import matplotlib.pyplot as plt 
 from parameter import element_dict, amino_acid_dict, common_dict_create 
+from tqdm import tqdm
 
 h2o_mass = element_dict["H"]*2 + element_dict["O"]*1
 proton_mass = element_dict['Pm']
@@ -129,7 +130,9 @@ def b_y_vector_generation(mass_vector, mod_pos):
 
 # 统计质量偏差
 def ion_diff_sum(mod_peak_list, peak_list):
-    ion_diff_counter = Counter() 
+
+    # ion_diff_counter = Counter() 
+    coarse_ion_diff_list = []
     ion_diff_list = [] 
     weight_ion_diff_list = []
     for mod_peak in mod_peak_list: 
@@ -139,19 +142,21 @@ def ion_diff_sum(mod_peak_list, peak_list):
         weight_ion_diff_fine = [[round(mod_peak - float(peak[0]), 6), float(peak[1])] for peak in peak_list] 
         weight_ion_diff_list += weight_ion_diff_fine
         ion_diff = [round(mass, 2) for mass in ion_diff_fine]
-        ion_diff_counter.update(ion_diff) 
-    return ion_diff_counter, ion_diff_list, weight_ion_diff_list  
+        # ion_diff_counter.update(ion_diff) 
+        coarse_ion_diff_list += ion_diff
+    return coarse_ion_diff_list, ion_diff_list, weight_ion_diff_list  
 
 
 
 # 统计中性丢失的数目 
 def ion_type_compute(filtered_res, modification, accurate_mass, common_modification_dict, mass_spectra_dict): 
-    total_ion_diff_counter = Counter() 
+    # total_ion_diff_counter = Counter() 
+    total_ion_diff_counter_list = []
     total_ion_diff_list = []
     total_weight_ion_diff_list = []
     #segment = int(len(filtered_res) / 10)
     #i = 0 
-    for line in filtered_res:
+    for line in tqdm(filtered_res):
         #if i % segment == 0:
         #    print('finished ', i / segment * 10,  'percetage')
         line_split = line.split('\t')
@@ -168,12 +173,15 @@ def ion_type_compute(filtered_res, modification, accurate_mass, common_modificat
             peak_list = mass_spectra_dict[spectrum_name].peak_list
         else:
             continue
-        ion_diff_counter, ion_diff_fine, weight_ion_diff = ion_diff_sum(mod_peak_list, peak_list)
-        total_ion_diff_counter.update(ion_diff_counter) 
+        #ion_diff_counter, ion_diff_fine, weight_ion_diff = ion_diff_sum(mod_peak_list, peak_list)
+        coarse_ion_diff, ion_diff_fine, weight_ion_diff = ion_diff_sum(mod_peak_list, peak_list)
+        # total_ion_diff_counter.update(ion_diff_counter) 
+        total_ion_diff_counter_list += coarse_ion_diff
         total_ion_diff_list += ion_diff_fine 
         total_weight_ion_diff_list += weight_ion_diff 
         # i += 1
         # break  
+    total_ion_diff_counter = Counter(total_ion_diff_counter_list)
     # print(total_ion_diff_counter.most_common()[:10])
     return total_ion_diff_counter, total_ion_diff_list, total_weight_ion_diff_list
 
@@ -194,6 +202,31 @@ def freq_line_plot(total_ion_diff_counter):
     plt.ylabel('frequency')
     plt.show()
 
+
+# 绘制论文里面的图 
+def freq_point_plot(total_ion_diff_counter): 
+    xy_pair = []
+    x = []
+    y = [] 
+    i = 0 
+    #for k, v in total_ion_diff_counter.items(): 
+    #    xy_pair.append([k, v]) 
+
+    # 选择top-n的画折线图更加好看
+    for k, v in total_ion_diff_counter.most_common(10000): 
+        xy_pair.append([k, v])
+    xy_pair = sorted(xy_pair, key=lambda k: k[0]) 
+    
+    for xy in xy_pair:
+        x.append(xy[0])
+        y.append(xy[1])
+
+    plt.plot(x, y, 'r-', alpha=0.6)
+    plt.xlabel('Offset')
+    plt.ylabel('Counts')
+    plt.xlim((200, 2000))
+    # plt.xlim((200, 800))
+    plt.show()
 
 # 精准质量计算 
 def accurate_ion_mass_computation(coarse_mass, total_ion_diff_list): 
@@ -363,6 +396,8 @@ def ion_type_determine(current_path, modification_list, modification_dict, param
         # total_ion_diff_list: 所有质量差组成的列表 
         total_ion_diff_counter, total_ion_diff_list, total_weight_ion_diff_list = ion_type_compute(filtered_res, modification, modification_dict[modification], common_modification_dict, mass_spectra_dict) 
         # 画频率图 
+        # freq_point_plot(total_ion_diff_counter)
+        # print(total_ion_diff_counter)
         #freq_line_plot(total_ion_diff_counter) 
         # freq_analysis(total_ion_diff_counter)
 
@@ -371,7 +406,11 @@ def ion_type_determine(current_path, modification_list, modification_dict, param
             exist_ion_flag = False 
 
         repeat_list = []
-        for ion_mass, _ in total_ion_diff_counter.most_common()[:10]:
+        for ion_mass, _ in total_ion_diff_counter.most_common()[:10]: 
+
+            # 是否引入信噪比过滤
+            #if signal_noise_filter(ion_mass, total_ion_diff_counter) == False: 
+            #    continue
             accurate_ion_mass = accurate_ion_mass_computation(ion_mass, total_ion_diff_list) 
             # weight_accurate_ion_mass = weight_accurate_ion_mass_computation(ion_mass, total_weight_ion_diff_list)
             # print('average: ', accurate_ion_mass)
@@ -387,6 +426,33 @@ def ion_type_determine(current_path, modification_list, modification_dict, param
     #print('Feature ion results')
     #pair_list = feature_pair_find(position_list, peak_dict, parameter_dict['mass_of_diff_diff']) 
     return mod2ion, ion_list, exist_ion_flag
+
+
+# 计算信噪比，然后返回是否符合阈值 
+def signal_noise_filter(ion_mass, total_ion_diff_counter, mass_range=50, threshold=2.0): 
+    noise_num = 0 
+    noise_intensity = 0.0 
+    signal_intensity = 0.0
+    min_mass = max(0, ion_mass - mass_range) 
+    max_mass = ion_mass + mass_range 
+    name_list = [k for k, _ in total_ion_diff_counter.most_common()[:20]]
+
+    for k, v in total_ion_diff_counter.items(): 
+        if abs(k - ion_mass) < 1.0: 
+            signal_intensity += v 
+            continue 
+        if k > min_mass and k < max_mass and k not in name_list: 
+            noise_num += 1 
+            noise_intensity += v 
+    
+    noise_intensity = float(noise_intensity / (max_mass - min_mass)) 
+    if noise_intensity > 1.0:
+        signal2noise = float(signal_intensity / noise_intensity) 
+    else:
+        signal2noise = float(signal_intensity)
+    print(ion_mass, signal2noise)
+    return signal2noise >= threshold
+
 
 
 # 利用轻重标记筛选中性丢失 

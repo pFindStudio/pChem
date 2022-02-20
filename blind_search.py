@@ -10,6 +10,7 @@ from mass_diff_correction import mass_correct, small_delta_filter, \
     summary_filter, explain_dict_generate 
 from ion_type_learning import ion_type_determine 
 from pparse import data_preprocess
+from confidence_set import accurate_mass_for_result_file 
 import shutil 
 
 
@@ -60,7 +61,8 @@ def blind_search(current_path):
     # print(mod2pep)
     # 盲搜的结果文件
     
-    blind_path = os.path.join(parameter_dict['output_path'], 'blind')
+    blind_path = os.path.join(parameter_dict['output_path'], 'blind') 
+    pfind_summary_path = os.path.join(blind_path, 'pFind.summary')
     blind_path = os.path.join(blind_path, 'pFind-Filtered.spectra')
     #print(mass_diff_list)
     
@@ -79,7 +81,11 @@ def blind_search(current_path):
     #system_correct={mean, median}, mod_correct={mean, median, weight}
     mass_diff_dict, sim_mod_number_dict = mass_correct(current_path, blind_path, mass_diff_list, parameter_dict, system_correct='mean', mod_correct='mean') 
     #mass_diff_dict = mass_correct(current_path, blind_path, mass_diff_list, system_correct='median', mod_correct='median') 
+    print(mass_diff_dict)
     
+    print(mod_static_dict)
+    # 质量写入pFind鉴定结果文件
+    accurate_mass_for_result_file(pfind_summary_path, mass_diff_dict)
 
     # 将统计结果写入结果文件 中性丢失的计算 
     mass_diff_pair_rank, refine_ion_list, exist_ion_flag_list = new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, parameter_dict, explain_dict, sim_mod_number_dict) 
