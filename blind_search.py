@@ -7,7 +7,7 @@ from utils import parameter_file_read, modification_ini_path, modification_ini_d
     close_cfg_write, new_mass_list_generate, delete_file, remove_file
 from mass_diff_correction import mass_correct, small_delta_filter, \
     mass_static, summary_write, mass_select, new_summary_write, unimod_dict_generate, \
-    summary_filter, explain_dict_generate 
+    summary_filter, explain_dict_generate, unify_summary_write
 from ion_type_learning import ion_type_determine 
 from pparse import data_preprocess
 from confidence_set import accurate_mass_for_result_file 
@@ -75,34 +75,51 @@ def blind_search(current_path):
 
     # 过滤小于200和复数修饰 
     name2mass, mass_diff_list = small_delta_filter(mass_diff_list, parameter_dict) 
-    mod_static_dict, mod_number_dict = mass_static(blind_path, current_path, mass_diff_list, parameter_dict['side_position']) 
+    mod_static_dict, mod_number_dict = mass_static(blind_path, current_path, mass_diff_list, parameter_dict['side_position'], parameter_dict)  # 统计位点分布
 
     # 计算精确质量 
     #system_correct={mean, median}, mod_correct={mean, median, weight}
-    mass_diff_dict, sim_mod_number_dict = mass_correct(current_path, blind_path, mass_diff_list, parameter_dict, system_correct='mean', mod_correct='mean') 
+    mass_diff_dict, sim_mod_number_dict,  mod_std_dict, mod_r_dict = mass_correct(current_path, blind_path, mass_diff_list, parameter_dict, system_correct='mean', mod_correct='mean') 
     #mass_diff_dict = mass_correct(current_path, blind_path, mass_diff_list, system_correct='median', mod_correct='median') 
-    print(mass_diff_dict)
+
+    #print(mass_diff_dict)
     
-    print(mod_static_dict)
+    #print(mod_static_dict)
     # 质量写入pFind鉴定结果文件
-    accurate_mass_for_result_file(pfind_summary_path, mass_diff_dict)
-
-    # 将统计结果写入结果文件 中性丢失的计算 
-    mass_diff_pair_rank, refine_ion_list, exist_ion_flag_list = new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, parameter_dict, explain_dict, sim_mod_number_dict) 
-    #print(refine_ion_list)
-
-    # 删选结果文件 
-    # summary_filter(current_path, parameter_dict) 
-    
-    # 生成新的ini文件 
+    accurate_mass_for_result_file(pfind_summary_path, mass_diff_dict, parameter_dict) 
     ini_path = modification_ini_path(parameter_dict) 
-    mass_diff_pair_rank = add_mass_list(mass_diff_pair_rank, parameter_dict) 
-    mass_diff_pair_rank = new_mass_list_generate(mass_diff_pair_rank, mass_diff_list) 
-    if parameter_dict['close_mass_diff_number'] < len(mass_diff_pair_rank):
-        mass_diff_pair_rank = mass_diff_pair_rank[:parameter_dict['close_mass_diff_number']]
-    # print(mass_diff_pair_rank)
-    new_ini_path = expand_modification_ini(mass_diff_pair_rank, mass_diff_dict, mod_static_dict, current_path, ini_path, refine_ion_list, exist_ion_flag_list)
+
+    if parameter_dict['isotope_labeling'] == 'False': 
+        
+        filter_mod, mass_diff_dict, mod_static_dict = unify_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, \
+                                parameter_dict, explain_dict, sim_mod_number_dict, 'blind', mod_std_dict, mod_r_dict) 
+        
+        if parameter_dict['close_mass_diff_number'] < len(filter_mod):
+            filter_mod = filter_mod[:parameter_dict['close_mass_diff_number']]
+        new_ini_path = expand_modification_ini(filter_mod, mass_diff_dict, mod_static_dict, current_path, ini_path, parameter_dict)
+        mass_diff_pair_rank = filter_mod
+
+    else:
+
+
+        # 将统计结果写入结果文件 中性丢失的计算 
+        mass_diff_pair_rank, refine_ion_list, exist_ion_flag_list = new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, \
+                                                                                    parameter_dict, explain_dict, sim_mod_number_dict, 'blind', mod_std_dict, mod_r_dict) 
+        #print(refine_ion_list)
+
+        # 删选结果文件 
+        # summary_filter(current_path, parameter_dict) 
     
+        # 生成新的ini文件 
+    
+        mass_diff_pair_rank = add_mass_list(mass_diff_pair_rank, parameter_dict)   # 加上重标的质量，然后展平 
+        mass_diff_pair_rank = new_mass_list_generate(mass_diff_pair_rank, mass_diff_list)  # 取交集   
+        if parameter_dict['close_mass_diff_number'] < len(mass_diff_pair_rank):
+            mass_diff_pair_rank = mass_diff_pair_rank[:parameter_dict['close_mass_diff_number']]
+    # print(mass_diff_pair_rank)
+        new_ini_path = expand_modification_ini(mass_diff_pair_rank, mass_diff_dict, mod_static_dict, current_path, ini_path, parameter_dict, refine_ion_list, exist_ion_flag_list)
+    
+
     # 生成限定式参数文件 
     close_cfg_path = os.path.join(os.path.join(os.path.join(current_path, 'bin'), 'template'), 'close.cfg')
     close_cfg_write(close_cfg_path, current_path, parameter_dict, mass_diff_pair_rank)

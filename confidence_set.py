@@ -1,7 +1,10 @@
 from collections import Counter 
+import os 
+
+
 
 # 将鉴定得到的未知修饰质量写入盲搜/限定式结果文件
-def accurate_mass_for_result_file(file_path, mass_diff_dict, mode='blind'): 
+def accurate_mass_for_result_file(file_path, mass_diff_dict, parameter_dict, mode='blind'): 
     with open(file_path, 'r', encoding='utf-8') as f: 
         lines = f.readlines() 
     # print(lines) 
@@ -17,6 +20,8 @@ def accurate_mass_for_result_file(file_path, mass_diff_dict, mode='blind'):
             query = line.split()[0] 
             if mode == 'close':
                 query = query.split('.')[0] 
+            if mode == 'close' and parameter_dict['isotope_labeling'] == 'False':
+                query = query.split('_')[2]
             if query in mass_diff_dict.keys(): 
                 new_lines.append(line_rewrite(line, mass_diff_dict[query]))
             else:
@@ -33,6 +38,7 @@ def accurate_mass_for_result_file(file_path, mass_diff_dict, mode='blind'):
             f.write(line)
 
 
+
 def line_rewrite(line, mass): 
     return line[:-1] + '\t' + str(mass) + '\n'
 
@@ -41,15 +47,21 @@ def line_rewrite(line, mass):
 # 计算平均剩余残差平方 
 import numpy as np
 def residual_compute(target_mass, mass_list): 
-    print(np.mean(mass_list), np.std(mass_list))
-    sample_std = np.std(mass_list)
-    std = 0.0
+    # print(np.mean(mass_list), np.std(mass_list))
+    sample_mean = np.mean(mass_list)
+    predict = 0.0
+    gt = 0.0
     for mass in mass_list: 
-        std += (mass - target_mass) * (mass - target_mass) 
-
-    r_sq = 2 - np.sqrt(std /104.0) / sample_std 
-    print(r_sq)
-
+        predict += (mass - target_mass) * (mass - target_mass) 
+        gt += (mass - sample_mean) * (mass - sample_mean) 
+    if predict == 0.0:
+        r_value = 0.05
+    else:
+        r_value = float(gt / predict) 
+    r_value = max(r_value, 1.0 - r_value)  
+    if r_value < 0.8: 
+        r_value = 0.8 + r_value / 10.0 
+    return r_value
 
 
 
@@ -69,8 +81,12 @@ def position_test(position_counter, prior_distribution):
         total_num -= v 
         
 
+
+
+
 # 统计位点分布的先验频率
 def prior_distribution_compute(file_path, mod): 
+
     with open(file_path, 'r', encoding='utf-8') as f: 
         lines = f.readlines() 
     
@@ -89,19 +105,51 @@ def prior_distribution_compute(file_path, mod):
                 num += 1  
             prior_distribution['N-SIDE'] += 1
             prior_distribution['C-SIDE'] += 1 
-    print(prior_distribution)
+    #print(prior_distribution)
     for key in prior_distribution.keys(): 
         prior_distribution[key] = float(prior_distribution[key] / num) 
-    print(num)
-    print('psm: ', psm)
-    print(prior_distribution)
+    #print(num)
+    #print('psm: ', psm)
+    #print(prior_distribution)
     return prior_distribution
 
 
 
 
+# N-SIDE的统计方式需要考虑
+def total_trail_compute(position_list):
+    total_num = 0 
+    for pair in position_list:
+        #if 'N-CIDE' == pair[0]:
+        #    continue 
+        total_num += pair[1] 
+    return total_num 
+
+
+
+# 对每个修饰的所有报告位点计算置信度
+# 计算p-value需要信息： mod name、position_list、parameter_dict、 pattern-> 去不同搜索结果里面统计先验频率 
+def p_value_for_mod(mod_name, position_list, parameter_dict, pattern): 
+    
+    # 计算先验频率
+    # source_path = os.path.join(parameter_dict['output_path'], 'source') 
+    pattern_path = os.path.join(parameter_dict['output_path'], pattern) 
+    pfind_summary_path = os.path.join(pattern_path, 'pFind-Filtered.spectra')
+
+    prior_distribution = prior_distribution_compute(pfind_summary_path, 'PFIND_DELTA_' + mod_name) 
+    total_trail = total_trail_compute(position_list) 
+
+    p_value_dict = {} 
+    for pair in position_list: 
+        p_value_dict[pair[0]] = format(binom_test(pair[1], total_trail, p=prior_distribution[pair[0]], alternative='greater'), '.4f')
+    return p_value_dict 
+    
+
+
+
 
 if __name__ == "__main__": 
+
     blind_mass_dict = {'PFIND_DELTA_387.18': 387.175225, 'PFIND_DELTA_393.20': 393.196465, 
     'PFIND_DELTA_325.17': 325.166226, 'PFIND_DELTA_471.24': 471.234108, 'PFIND_DELTA_477.26': 477.257341, 'PFIND_DELTA_371.18': 371.178761, 'PFIND_DELTA_369.17': 369.165961, 'PFIND_DELTA_409.20': 409.19209, 'PFIND_DELTA_375.19': 375.187079, 'PFIND_DELTA_261.11': 261.105591, 
     'PFIND_DELTA_331.18': 331.182578, 'PFIND_DELTA_255.09': 255.086557, 'PFIND_DELTA_403.18': 403.171312, 'PFIND_DELTA_305.11': 305.114061, 'PFIND_DELTA_323.15': 323.146595, 
@@ -138,7 +186,7 @@ if __name__ == "__main__":
 
     mass_list = [387.175302, 387.174946, 387.177513, 387.176867, 387.175535, 387.174119, 387.177558, 387.17416, 387.175803, 387.179019, 387.172765, 387.182742, 387.172077, 387.17845, 387.176522, 387.174005, 387.177563, 387.179487, 387.173134, 387.177723, 387.176265, 387.172865, 387.182995, 387.172778, 387.17891, 387.180439, 387.178613, 387.172788, 387.173217, 387.17622, 387.175217, 387.176924, 387.175817, 387.180149, 387.176449, 387.17569, 387.181579, 387.177501, 387.173593, 387.175542, 387.172815, 387.17932, 387.181172, 387.178474, 387.179223, 387.176096, 387.176307, 387.175256, 387.17769, 387.176268, 387.178428, 387.17709, 387.178226, 387.178464, 387.174615, 387.173003, 387.178307, 387.175803, 387.17508, 387.174872, 387.178746, 387.174259, 387.171746, 387.172536, 387.174429, 387.181688, 387.177593, 387.179464, 387.179066, 387.175107, 387.172969, 387.173353, 387.17193, 387.181708, 387.170776, 387.170155, 387.175783, 387.172327, 387.174484, 387.176246, 387.176897, 387.176668, 387.175057, 387.175174, 387.177178, 387.172155, 387.173713, 387.183545, 387.174813, 387.177579, 387.188771, 387.173412, 387.172199, 387.179957, 387.180594, 387.177088, 387.171014, 387.174384, 387.172217, 387.175892, 387.176847, 387.176071, 387.175387, 387.175234]
     target_mass = 387.175385 
-    residual_compute(target_mass, mass_list)
+    print(residual_compute(target_mass, mass_list))
 
 
 

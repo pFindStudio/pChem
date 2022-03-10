@@ -1,4 +1,5 @@
 # 对盲搜鉴定到的修饰，进行质量校正
+from lib2to3.pgen2.literals import simple_escapes
 import os 
 import numpy as np 
 from collections import Counter 
@@ -9,6 +10,10 @@ import math
 from ion_type_learning import ion_type_determine, ion_filter  
 from parameter import element_dict, amino_acid_dict, common_dict_create, h2o_mass, proton_mass
 from matplotlib.backends.backend_pdf import PdfPages
+from confidence_set import residual_compute, p_value_for_mod
+from parameter import amino_acid_dict
+
+from psite import psite_run
 
 # 计算系统误差(绝对值)
 def system_shift_compute(lines, system_correct='mean'):
@@ -81,7 +86,8 @@ def origin_mass_list_generate(lines, common_dict, factor_shift):
 
 # 通过多次迭代优化 
 def iterative_mass_compute(mass_diff, original_unknown_list, light_heavy_dict=None, mass_diff_diff=None, mode='blind'): 
-    # print(mass_diff_diff)
+    # print(mass_diff_diff) 
+
     if mode == 'blind':
         target_mass = float(mass_diff.split('_')[2]) 
     else:
@@ -100,11 +106,13 @@ def iterative_mass_compute(mass_diff, original_unknown_list, light_heavy_dict=No
         #if mode == 'heavy':
         #    if mass + mass_diff_diff >= target_mass - 0.01 and mass + mass_diff_diff <= target_mass + 0.01: 
         #        data.append(mass + mass_diff_diff) 
-    print(data)
+    # print(data)
     spectrum_num = len(data)
     if len(data) == 0: 
-        return 0.0, 0
+        return 0.0, 1.0, 0 
+    
     mu0 = np.mean(data) 
+    std0 = np.std(data)
     times = 1 
 
     while True: 
@@ -125,9 +133,11 @@ def iterative_mass_compute(mass_diff, original_unknown_list, light_heavy_dict=No
         data = a 
         if mu == mu0 or times == 3: 
             break 
-        mu0 = mu
+        mu0 = mu 
+        std0 = sigma 
         times += 1 
-    return mu0, spectrum_num
+    # print(mu0, std0, spectrum_num)
+    return mu0, std0, spectrum_num
 
 
 
@@ -264,20 +274,27 @@ def mass_correct(current_path, blind_path, mass_diff_list, parameter_dict, syste
     # 计算未知修饰的精确质量 
     original_unknown_list = origin_mass_list_generate(lines, common_dict, factor_shift)
     mass_dict = {} 
-    mod_number_dict = {}
+    mod_number_dict = {} 
+
+
+    mod_std_dict = {}
+    mod_r_dict = {}
     # 如果是盲搜，先做一轮粗删选，方便加速 -> 新版是需要的
+
     if pattern != 'close': 
         new_mass_diff_list, light_heavy_dict = coarse_filter(mass_diff_list, parameter_dict) 
         # print(new_mass_diff_list, light_heavy_dict) 
         mass_diff_list = new_mass_diff_list
     for mass_diff in mass_diff_list: 
+        std = 0.0 
+        r_value = 0.0 
         if mod_correct == 'weight': 
             accurate_mass_diff = weight_accurate_mass_compute(lines, mass_diff, common_dict) 
         else: 
             if pattern == 'close': 
                 accurate_mass_diff = accurate_mass_compute(lines, mass_diff, common_dict, factor_shift, mod_correct)
             else:
-                accurate_mass_diff, spectrum_num = iterative_mass_compute(mass_diff, original_unknown_list) 
+                accurate_mass_diff, std, spectrum_num = iterative_mass_compute(mass_diff, original_unknown_list) 
                 mod_name = str(int(float(mass_diff.split('_')[2]))) 
                 if mod_name in mod_number_dict.keys(): 
                     mod_number_dict[mod_name] += spectrum_num 
@@ -291,9 +308,15 @@ def mass_correct(current_path, blind_path, mass_diff_list, parameter_dict, syste
         # 使用ppm做校准 
         # print(accurate_mass_diff)
         mass_dict[mass_diff] = float('%.6f'%(accurate_mass_diff)) 
-    # print(mass_dict)
-    pfind_result_rewrite(blind_path, origin_lines, common_dict, factor_shift)
-    return mass_dict, mod_number_dict
+        simple_mass = str(int(float(mass_diff.split('_')[2])))
+        if simple_mass not in mod_std_dict.keys():
+            mod_std_dict[simple_mass] = float('%.6f'%(std))
+            mod_r_dict[simple_mass] = float('%.6f'%(residual_compute(accurate_mass_diff, original_unknown_list)))
+
+    # 将pFind的结果文件增加一列 精确质量 
+    pfind_result_rewrite(blind_path, origin_lines, common_dict, factor_shift) 
+
+    return mass_dict, mod_number_dict, mod_std_dict, mod_r_dict
 
 
 # system_correct={mean, median}, mod_correct={mean, median, weight}
@@ -325,13 +348,16 @@ def close_mass_correct(current_path, blind_path, mass_diff_list, parameter_dict,
     original_unknown_list = origin_mass_list_generate(lines, common_dict, factor_shift)
     mass_dict = {} 
     mod_number_dict = {}
+    
+    mod_std_dict = {}
+    mod_r_dict = {}
     # 如果是盲搜，先做一轮粗删选，方便加速 
     #if pattern != 'close': 
     #    new_mass_diff_list, light_heavy_dict = coarse_filter(mass_diff_list, parameter_dict) 
         # print(new_mass_diff_list, light_heavy_dict) 
     #    mass_diff_list = new_mass_diff_list
     for mass_diff in mass_diff_list: 
-        print(mass_diff)
+        # print(mass_diff)
         #if mod_correct == 'weight': 
         #    accurate_mass_diff = weight_accurate_mass_compute(lines, mass_diff, common_dict) 
         #else: 
@@ -340,7 +366,7 @@ def close_mass_correct(current_path, blind_path, mass_diff_list, parameter_dict,
         #    else: 
         total_name = total_name_dict[mass_diff] 
         target_mass = mass_diff_blind_dict[total_name]
-        accurate_mass_diff, spectrum_num = iterative_mass_compute(target_mass, original_unknown_list, mode='close') 
+        accurate_mass_diff, std, spectrum_num = iterative_mass_compute(target_mass, original_unknown_list, mode='close') 
         mod_name = str(int(float(mass_diff.split('_')[2]))) 
         if mod_name in mod_number_dict.keys(): 
             mod_number_dict[mod_name] += spectrum_num 
@@ -352,11 +378,99 @@ def close_mass_correct(current_path, blind_path, mass_diff_list, parameter_dict,
         # mass_dict[mass_diff] = float('%.6f'%(accurate_mass_diff - system_shift)) 
 
         # 使用ppm做校准 
-        
+
         mass_dict[mass_diff] = float('%.6f'%(accurate_mass_diff)) 
+        simple_mass = str(int(float(mass_diff.split('_')[2])))
+        if simple_mass not in mod_std_dict.keys():
+            mod_std_dict[simple_mass] = float('%.6f'%(std))
+            mod_r_dict[simple_mass] = float('%.6f'%(residual_compute(accurate_mass_diff, original_unknown_list)))
+
+
     # print(mass_dict)
+
     pfind_result_rewrite(blind_path, origin_lines, common_dict, factor_shift)
-    return mass_dict, mod_number_dict
+    return mass_dict, mod_number_dict, mod_std_dict, mod_r_dict
+
+
+
+# 统一模式下的质量校准
+def unify_close_mass_correct(current_path, close_path, mass_diff_list, parameter_dict, mass_diff_blind_dict):
+    # 读取常见修饰列表
+    common_dict = common_dict_create(current_path)
+
+    # 读取限定式鉴定结果文件
+    with open(close_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines() 
+    origin_lines = lines 
+    lines = lines[1:] 
+    
+    # 只选择q-value < 0.001的谱图 
+    # lines = q_value_filter(lines) 
+
+    # 计算系统误差 
+    # 是否需要引入误差校准
+    if parameter_dict['mass_calibration'] == 'True': 
+        system_shift = ppm_system_shift_compute(lines) 
+        factor_shift = 1.0 / (1.0 + system_shift/ 1000000.0) 
+    else:
+        factor_shift = 1.0 
+        print('no mass calibration is employed')
+    
+    # 计算未知修饰的精确质量 
+    original_unknown_list = origin_mass_list_generate(lines, common_dict, factor_shift) 
+    
+    #print('unknown_list', len(original_unknown_list))
+    mass_dict = {} 
+    mod_number_dict = {}
+    
+    mod_std_dict = {}
+    mod_r_dict = {}
+    # 如果是盲搜，先做一轮粗删选，方便加速 
+    #if pattern != 'close': 
+    #    new_mass_diff_list, light_heavy_dict = coarse_filter(mass_diff_list, parameter_dict) 
+        # print(new_mass_diff_list, light_heavy_dict) 
+    #    mass_diff_list = new_mass_diff_list
+    for mass_diff in mass_diff_list: 
+        # print(mass_diff)
+        #if mod_correct == 'weight': 
+        #    accurate_mass_diff = weight_accurate_mass_compute(lines, mass_diff, common_dict) 
+        #else: 
+        #    if pattern == 'close': 
+        #        accurate_mass_diff = accurate_mass_compute(lines, mass_diff, common_dict, factor_shift, mod_correct)
+        #    else: 
+        # total_name = total_name_dict[mass_diff] 
+        target_mass = mass_diff_blind_dict[mass_diff]
+        accurate_mass_diff, std, spectrum_num = iterative_mass_compute(target_mass, original_unknown_list, mode='close') 
+        #mod_name = str(int(float(mass_diff.split('_')[2]))) 
+        mod_name = mass_diff
+        if mod_name in mod_number_dict.keys(): 
+            mod_number_dict[mod_name] += spectrum_num 
+        else:
+            mod_number_dict[mod_name] = spectrum_num
+                # print(accurate_mass_diff)
+                # accurate_mass_diff = accurate_mass_compute(lines, mass_diff, common_dict, factor_shift, mod_correct) 
+        # 使用绝对值做校准
+        # mass_dict[mass_diff] = float('%.6f'%(accurate_mass_diff - system_shift)) 
+
+        # 使用ppm做校准 
+
+        mass_dict[mass_diff] = float('%.6f'%(accurate_mass_diff)) 
+        # simple_mass = str(int(float(mass_diff.split('_')[2])))
+        simple_mass = mass_diff
+        # print(accurate_mass_diff, original_unknown_list)
+        
+        if simple_mass not in mod_std_dict.keys():
+            mod_std_dict[simple_mass] = float('%.6f'%(std))
+            mod_r_dict[simple_mass] = float('%.6f'%(residual_compute(accurate_mass_diff, original_unknown_list)))
+
+
+    # print(mass_dict)
+
+    pfind_result_rewrite(close_path, origin_lines, common_dict, factor_shift)
+    return mass_dict, mod_number_dict, mod_std_dict, mod_r_dict
+
+
+
 
 
 
@@ -444,7 +558,7 @@ def mass_diff_diff_filter(name2mass, mass_diff_list, mass_diff_diff):
 
 
 # 统计修饰发生的位点分布 
-def mass_static(blind_path, current_path, mass_diff_list, side_position='False'): 
+def mass_static(blind_path, current_path, mass_diff_list, side_position='False', parameter_dict=None, pattern='blind'): 
     mod_position_dict = {} 
     mod_number_dict = {} 
     if side_position == 'False': 
@@ -465,6 +579,8 @@ def mass_static(blind_path, current_path, mass_diff_list, side_position='False')
         mod_list = lines[i].split('\t')[10].split(';')[:-1]
         for mod in mod_list:
             pos, mod_name = mod.split(',')
+            if pattern== 'close' and parameter_dict['isotope_labeling'] == 'False':
+                mod_name = mod_name.split('_')[2]
             if mod_name in mass_diff_list:
                 pos = int(pos) 
                 mod_number_dict[mod_name] += 1
@@ -524,28 +640,54 @@ def mod_number_update(origin_dict, new_dict):
     return combine_dict 
 
 
+def unify_mod_number_update(origin_dict, new_dict): 
+    combine_dict = {} 
+    for k in origin_dict.keys(): 
+        combine_dict[k] = max(origin_dict[k], new_dict[mod_name_refine(k)]) 
+    return combine_dict 
+
+
+def mod_name_refine(key):
+    return key.split('_')[2].split('.')[0]
+
+
+
 # 根据mass_diff_pair_pair输出结果
-def new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, parameter_dict, unimod_dict, sim_mod_number=None, pattern='blind'): 
+def new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, \
+                        parameter_dict, unimod_dict, sim_mod_number=None, pattern='blind',  mod_std_dict=None, mod_r_dict=None): 
     
     
     mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, rank_dict, label_dict, mass_diff_rank, mass_diff_pair_rank, unimod_list, ppm_error_dict = \
         mass_refine(mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, parameter_dict, unimod_dict, pattern) 
     # print(mod_number_dict)
     
+    # print(mod_std_dict, mod_r_dict)
     new_mod_number_dict = mod_number_update(mod_number_dict, sim_mod_number) 
     mod_number_dict = sim_mod_number
     lines = [] 
-    lines.append('Rank \tPDM \tAccurate Mass \
-                \tTop1 Site|Probability \t Others \t #PSM \t #PSM L|H \n')
-    # print('matched:', mass_diff_pair_rank)
+    if parameter_dict['report_statistical'] == 'False': 
+        lines.append('Rank \tPDM \tAccurate Mass \
+                    \tTop1 Site|Probability \t Others \t #PSM \t #PSM L|H \n')
+    else:
+        lines.append('Rank \tPDM \tAccurate Mass (std, r-squared) \
+                    \tTop1 Site | Probability | p-value \t Others \t #PSM \t #PSM L|H \n')
+    
     idx = 1 
     
-    prob_dict = {}
+    prob_dict = {} 
+    # 用于中性丢失算法去异常点 
+    summary_mass_dict = {}
     for mass_pair in mass_diff_pair_rank: 
         light_mod = mass_pair[0]
         heavy_mod = mass_pair[1] 
         local_list = mod_static_dict[light_mod].most_common() 
-        
+        # print(local_list)
+        local_list = psite_run(parameter_dict, current_path, light_mod, pattern, local_list)
+
+        # 计算p-value需要信息： mod name、position_list、parameter_dict、 pattern-> 去不同搜索结果里面统计先验频率 
+        if parameter_dict['report_statistical'] == 'True': 
+            p_dict = p_value_for_mod(light_mod, local_list, parameter_dict, pattern) 
+        # print(local_list)
         prob_dict[light_mod] = []
         Top1_site = local_list[0][0]
         
@@ -559,28 +701,43 @@ def new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, m
                 parent_num += local_list[j][1] 
         else: 
             parent_num = new_mod_number_dict[light_mod] 
+        
 
         for j in range(1, len(local_list)):
             temp_pro = local_list[j][1] / parent_num 
             if local_list[j][0] == 'N-SIDE' or local_list[j][0] == 'C-SIDE':
                 temp_pro = temp_pro * parent_num * factor / mod_number_dict[light_mod] 
             prob_dict[light_mod].append([local_list[j][0], temp_pro])
-            Others += local_list[j][0] + '(' + str(round(temp_pro, 3)) + '); '
+            if parameter_dict['report_statistical'] == 'True': 
+                Others += local_list[j][0] + '(' + str(round(temp_pro, 3)) + ', ' + str(p_dict[local_list[j][0]]) + ');  ' 
+            else:
+                Others += local_list[j][0] + '(' + str(round(temp_pro, 3)) + ');  ' 
             if local_list[j][0] == 'N-SIDE' or local_list[j][0] == 'C-SIDE': 
                 continue
             residual_pro += temp_pro  
         
+        summary_mass_dict[light_mod] = [Top1_site, mass_diff_dict[light_mod]]
+
         if Top1_site == 'N-SIDE' or Top1_site == 'C-SIDE': 
-            Top1_pro = str(round(local_list[0][1] / parent_num, 3)) 
+            if parent_num > 0:
+                Top1_pro = local_list[0][1] / parent_num
+            else: 
+                Top1_pro = 1.0
         else: 
-            Top1_pro =  str(round(1 - residual_pro, 3)) 
-        prob_dict[light_mod].append([Top1_site, Top1_pro])
-        line = str(idx) + '\t' + 'PFIND_DELTA_' + light_mod + '\t'+ str(mass_diff_dict[light_mod]) +'\t' + Top1_site +'|'+ Top1_pro + '\t' + Others + '\t' + \
-            str(mod_number_dict[light_mod] + mod_number_dict[heavy_mod]) + '\t' + str(mod_number_dict[light_mod]) + '|' +  str(mod_number_dict[heavy_mod])  + '\n' 
+            Top1_pro =  1 - residual_pro
+        Top1_pro = str(round(min(1.0, Top1_pro), 3)) 
+        prob_dict[light_mod].append([Top1_site, Top1_pro]) 
+
+
+        if parameter_dict['report_statistical'] == 'False': 
+            line = str(idx) + '\t' + 'PFIND_DELTA_' + light_mod + '\t'+ str(mass_diff_dict[light_mod]) +'\t' + Top1_site +'|'+ Top1_pro + '\t' + Others + '\t' + \
+                str(mod_number_dict[light_mod] + mod_number_dict[heavy_mod]) + '\t' + str(mod_number_dict[light_mod]) + '|' +  str(mod_number_dict[heavy_mod])  + '\n' 
+        else:
+            line = str(idx) + '\t' + 'PFIND_DELTA_' + light_mod + '\t'+ str(mass_diff_dict[light_mod]) +' (' + str(mod_std_dict[light_mod]) +', ' + str(mod_r_dict[light_mod]) + ') ' +'\t' + Top1_site +'|'+ Top1_pro + '|' + str(p_dict[Top1_site]) + '\t' + Others + '\t' + \
+                str(mod_number_dict[light_mod] + mod_number_dict[heavy_mod]) + '\t' + str(mod_number_dict[light_mod]) + '|' +  str(mod_number_dict[heavy_mod])  + '\n' 
         lines.append(line) 
         idx += 1 
     
-    # print(lines)
 
     if pattern == 'blind':
         summary_path = os.path.join(current_path, 'pChem.summary')
@@ -618,22 +775,163 @@ def new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, m
  
     # 将中性丢失结果写入结果文件  
     # print(refine_ion_list, exist_ion_flag_list)
-    add_ion_summary(summary_path, refine_ion_list, exist_ion_flag_list)
+    # print('extra:', mod_static_dict, mass_diff_dict)
+    add_ion_summary(summary_path, refine_ion_list, exist_ion_flag_list, summary_mass_dict, filter_mod)
 
     return filter_mod, refine_ion_list, exist_ion_flag_list  
 
 
+# 不考虑轻重标记的处理 
+def unify_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, \
+                        parameter_dict, unimod_dict, sim_mod_number=None, pattern='blind',  mod_std_dict=None, mod_r_dict=None): 
+    
+    
+    new_mod_static_dict, new_mod_number_dict, new_mod2pep, new_mass_diff_dict  = \
+        unify_mass_refine(mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, parameter_dict, unimod_dict, pattern) 
+    # print(mod_number_dict)
+    
+    new_mod_number_dict = mod_number_update(new_mod_number_dict, sim_mod_number) 
+    mod_number_dict = sim_mod_number
+    lines = [] 
+    if parameter_dict['report_statistical'] == 'False': 
+        lines.append('Rank \tPDM \tAccurate Mass \
+                    \tTop1 Site|Probability \t Others \t #PSM \n')
+    else:
+        lines.append('Rank \tPDM \tAccurate Mass (std, r-squared) \
+                    \tTop1 Site | Probability | p-value \t Others \t #PSM \n')
+    
+    # print('yi?:', new_mod_static_dict, new_mod_number_dict, new_mod2pep, new_mass_diff_dict)
+    idx = 1 
+
+    rank_tuple = sorted(new_mod_number_dict.items(), key=lambda x: -x[1]) 
+    
+    # threshold_gamma = int(rank_tuple[0][1] * parameter_dict['filter_frequency'] / 100)
+    # print('threshold_gamma: ', threshold_gamma)
+
+    prob_dict = {} 
+    # 用于中性丢失算法去异常点 
+    summary_mass_dict = {}
+    for mass_pair in rank_tuple: 
+        light_mod = mass_pair[0] 
+        local_list = new_mod_static_dict[light_mod].most_common() 
+        # print('pre', local_list)
+        
+        local_list = psite_run(parameter_dict, current_path, light_mod, pattern, local_list)
+
+        # 计算p-value需要信息： mod name、position_list、parameter_dict、 pattern-> 去不同搜索结果里面统计先验频率 
+        if parameter_dict['report_statistical'] == 'True': 
+            p_dict = p_value_for_mod(light_mod, local_list, parameter_dict, pattern) 
+        # print('after', local_list)
+        prob_dict[light_mod] = []
+        Top1_site = local_list[0][0]
+        
+        Others = '' 
+        residual_pro = 0.0 
+        factor = (new_mod_number_dict[light_mod] - new_mod_number_dict[light_mod] + local_list[0][1]) * new_mod_number_dict[light_mod] / new_mod_number_dict[light_mod] /  local_list[0][1] 
+
+        if Top1_site == 'N-SIDE' or Top1_site == 'C-SIDE': 
+            parent_num = 0 
+            for j in range(1, len(local_list)): 
+                parent_num += local_list[j][1] 
+        else: 
+            parent_num = new_mod_number_dict[light_mod] 
+        
+
+        for j in range(1, len(local_list)):
+            temp_pro = local_list[j][1] / parent_num 
+            if local_list[j][0] == 'N-SIDE' or local_list[j][0] == 'C-SIDE':
+                temp_pro = temp_pro * parent_num * factor / mod_number_dict[light_mod] 
+            prob_dict[light_mod].append([local_list[j][0], temp_pro])
+            if parameter_dict['report_statistical'] == 'True': 
+                Others += local_list[j][0] + '(' + str(round(temp_pro, 3)) + ', ' + str(p_dict[local_list[j][0]]) + ');  ' 
+            else:
+                Others += local_list[j][0] + '(' + str(round(temp_pro, 3)) + ');  ' 
+            if local_list[j][0] == 'N-SIDE' or local_list[j][0] == 'C-SIDE': 
+                continue
+            residual_pro += temp_pro  
+        
+        summary_mass_dict[light_mod] = [Top1_site, new_mass_diff_dict[light_mod]]
+
+        if Top1_site == 'N-SIDE' or Top1_site == 'C-SIDE': 
+            if parent_num > 0:
+                Top1_pro = local_list[0][1] / parent_num
+            else: 
+                Top1_pro = 1.0
+        else: 
+            Top1_pro =  1 - residual_pro
+        Top1_pro = str(round(min(1.0, Top1_pro), 3)) 
+        prob_dict[light_mod].append([Top1_site, Top1_pro]) 
 
 
-def add_ion_summary(summary_path, refine_ion_list, exist_ion_flag_list): 
-    # summary_path = os.path.join(current_path, 'pChem.summary')
+        if parameter_dict['report_statistical'] == 'False': 
+            line = str(idx) + '\t' + 'PFIND_DELTA_' + light_mod + '\t'+ str(new_mass_diff_dict[light_mod]) +'\t' + Top1_site +'|'+ Top1_pro + '\t' + Others + '\t' + \
+                str(new_mod_number_dict[light_mod]) + '\n' 
+        else:
+            line = str(idx) + '\t' + 'PFIND_DELTA_' + light_mod + '\t'+ str(new_mass_diff_dict[light_mod]) +' (' + str(mod_std_dict[light_mod]) +', ' + str(mod_r_dict[light_mod]) + ') ' +'\t' + Top1_site +'|'+ Top1_pro + '|' + str(p_dict[Top1_site]) + '\t' + Others + '\t' + \
+                str(new_mod_number_dict[light_mod]) + '\n' 
+        lines.append(line) 
+        idx += 1 
+    
+
+    if pattern == 'blind':
+        summary_path = os.path.join(current_path, 'pChem.summary')
+    else:
+        summary_path = os.path.join(current_path, 'pChem-close.summary')
+
+    
+    with open(summary_path, 'w', encoding='utf-8') as f:
+        for line in lines:
+            f.write(line) 
+    # 删除PSM 
+    filter_mod = [mod[0] for mod in rank_tuple] 
+    if pattern == 'blind': 
+        filter_mod = summary_filter(current_path, parameter_dict, filter_mod, pattern, summary_path, prob_dict) 
+    # 同时保存热力图 
+    if len(lines) < 2: 
+        print('The number of unknown modification is none, please expand the error range.')
+    else: 
+        if pattern == 'blind':
+            heat_map_plot(current_path, filter_mod, new_mod_static_dict, new_mod_number_dict, new_mod_number_dict) 
+    
+    '''
+    # 这个模式下不再需要中性丢失
+    # 对所有的筛选后的未知修饰做中性丢失
+    refine_ion_list = [] 
+    exist_ion_flag_list = []
+    for i in range(len(filter_mod)): 
+        # 中性丢失确认，函数输入形式确认 
+        modification_list, modification_dict = ion_function_input(filter_mod[i], mass_diff_dict, int(parameter_dict['mass_of_diff_diff']))
+        # 计算中性丢失的质量 
+        mod2ion, ion_list, exist_ion_flag = ion_type_determine(current_path, modification_list, modification_dict, parameter_dict)
+        # print(mod2ion)
+        t_refine_ion_list = ion_filter(ion_list, int(parameter_dict['mass_of_diff_diff'])) 
+        exist_ion_flag_list.append(exist_ion_flag) 
+        refine_ion_list.append(t_refine_ion_list) 
+ 
+    # 将中性丢失结果写入结果文件  
+    # print(refine_ion_list, exist_ion_flag_list)
+    # print('extra:', mod_static_dict, mass_diff_dict)
+    add_ion_summary(summary_path, refine_ion_list, exist_ion_flag_list, summary_mass_dict, filter_mod)
+    '''
+    return filter_mod, new_mass_diff_dict, new_mod_static_dict
+    
+
+
+
+def add_ion_summary(summary_path, refine_ion_list, exist_ion_flag_list, summary_mass_dict, filter_mod): 
+    # summary_path = os.path.join(current_path, 'pChem.summary') 
+    assert len(filter_mod) == len(refine_ion_list)
+    refine_ion_list = remove_outliner(refine_ion_list, summary_mass_dict, filter_mod)
+
     with open(summary_path, 'r', encoding='utf-8') as f: 
         lines = f.readlines() 
     if 'DFLs' not in  lines[0]: 
         lines[0] = lines[0][:-1] + ' \tDFLs \n' 
     for i in range(len(exist_ion_flag_list)): 
-        if exist_ion_flag_list[i] == True and len(refine_ion_list[i][0]) >= 1: 
-            add_info = list2string(refine_ion_list[i][0]) + ' |' + list2string(refine_ion_list[i][1]) + '\n'
+        if exist_ion_flag_list[i] == True and len(refine_ion_list[i]) >= 1: 
+            # 只显示轻标中性丢失 
+            # add_info = list2string(refine_ion_list[i][0]) + ' |' + list2string(refine_ion_list[i][1]) + '\n'
+            add_info = list2string(refine_ion_list[i]) + '\n'
             lines[i+1] = lines[i+1][:-1] + '\t' + add_info 
     sort_lines = sorted(lines[1:], key=lambda k: int(k.strip().split('\t')[5]), reverse=True) 
     idx = 0 
@@ -646,6 +944,25 @@ def add_ion_summary(summary_path, refine_ion_list, exist_ion_flag_list):
     with open(summary_path, 'w', encoding='utf-8') as f: 
         for line in new_sort_lines: 
             f.write(line)
+
+
+
+def remove_outliner(refine_ion_list, summary_mass_dict, filter_mod): 
+    new_refine_ion_list = [] 
+    for i in range(len(filter_mod)): 
+        abnorm = 0
+        position = summary_mass_dict[filter_mod[i]][0] 
+        if position in amino_acid_dict: 
+            abnorm = int(amino_acid_dict[position] + summary_mass_dict[filter_mod[i]][1]) 
+        new_list = [] 
+        for ion in refine_ion_list[i][0]: 
+            if int(ion) == abnorm: 
+                continue 
+            new_list.append(ion) 
+        new_refine_ion_list.append(new_list) 
+    return new_refine_ion_list
+
+
 
 
 def list2string(num_list): 
@@ -758,6 +1075,47 @@ def mass_refine(mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, param
     unimod_list = unimod_match(unimod_dict, mass_diff_pair_rank, new_mass_diff_dict)
     # print('total: ', mass_diff_rank)
     return new_mod_static_dict, new_mod_number_dict, new_mod2pep, new_mass_diff_dict, rank_dict, label_dict, mass_diff_rank, mass_diff_pair_rank, unimod_list, ppm_error_dict   
+
+
+
+# unify模式下，保留整数，其余信息进行合并 
+def unify_mass_refine(mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, parameter_dict, unimod_dict, pattern): 
+    
+    new_mod_static_dict, new_mod_number_dict, new_mod2pep, new_mass_diff_dict = {}, {}, {}, {}
+    new_mass_list = [] 
+    int_mass_list = [] 
+    print('mass_refibe:', mod_static_dict)
+    for mass in mod_static_dict: 
+        if mass not in mass_diff_dict.keys():
+            continue
+        if mass_diff_dict[mass] < parameter_dict['min_mass_modification']: 
+            continue 
+        if pattern == 'close' and parameter_dict['isotope_labeling'] == 'False': 
+            simple_mass = mass
+        else:
+            simple_mass = str(int(float(mass.split('_')[2]))) 
+        # 不是第一次出现
+        if simple_mass in new_mass_list: 
+            new_mod_static_dict[simple_mass] = new_mod_static_dict[simple_mass] + mod_static_dict[mass] 
+            new_mod_number_dict[simple_mass] = new_mod_number_dict[simple_mass] + mod_number_dict[mass]
+            new_mod2pep[simple_mass] = new_mod2pep[simple_mass] + int(mod2pep[mass]) 
+        else:
+            new_mass_list.append(simple_mass)
+            int_mass_list.append(int(simple_mass))
+            new_mod_static_dict[simple_mass] = mod_static_dict[mass] 
+            new_mod_number_dict[simple_mass] = mod_number_dict[mass]
+            t_mass = int(mod2pep[mass])
+            new_mod2pep[simple_mass] = t_mass 
+            new_mass_diff_dict[simple_mass] = mass_diff_dict[mass] 
+    # rank_dict, label_dict, mass_diff_rank, mass_diff_pair_rank = label_determine(new_mod_number_dict, int_mass_list, int(parameter_dict['mass_diff_diff'])) 
+    # min_num = modification_filter_frequency(new_mod_number_dict, parameter_dict) 
+    
+    # rank_dict, label_dict, mass_diff_rank, mass_diff_pair_rank, ppm_error_dict = accurate_label_determine(new_mod_number_dict, new_mass_diff_dict, parameter_dict, pattern)
+    # print('new', mass_diff_pair_rank)
+    # unimod_list = unimod_match(unimod_dict, mass_diff_pair_rank, new_mass_diff_dict)
+    # print('total: ', mass_diff_rank)
+    return new_mod_static_dict, new_mod_number_dict, new_mod2pep, new_mass_diff_dict 
+
 
 
 # 删选低于频率低于filter_frequency的修饰
@@ -1026,6 +1384,7 @@ def summary_filter(current_path, parameter_dict, filter_mod, pattern, summary_pa
         for line in new_lines: 
             f.write(line) 
     
+
     if pattern == 'blind' and parameter_dict['use_close_search'] == 'True': 
         # print('plot radar!')
         metric_evaluation(current_path, parameter_dict, summary_path, new_filter_mod, prob_dict)  

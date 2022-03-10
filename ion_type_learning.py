@@ -409,8 +409,9 @@ def ion_type_determine(current_path, modification_list, modification_dict, param
         for ion_mass, _ in total_ion_diff_counter.most_common()[:10]: 
 
             # 是否引入信噪比过滤
-            #if signal_noise_filter(ion_mass, total_ion_diff_counter) == False: 
-            #    continue
+            if signal_noise_filter(ion_mass, total_ion_diff_counter) == False: 
+                continue 
+            
             accurate_ion_mass = accurate_ion_mass_computation(ion_mass, total_ion_diff_list) 
             # weight_accurate_ion_mass = weight_accurate_ion_mass_computation(ion_mass, total_weight_ion_diff_list)
             # print('average: ', accurate_ion_mass)
@@ -450,7 +451,7 @@ def signal_noise_filter(ion_mass, total_ion_diff_counter, mass_range=50, thresho
         signal2noise = float(signal_intensity / noise_intensity) 
     else:
         signal2noise = float(signal_intensity)
-    print(ion_mass, signal2noise)
+    # print(ion_mass, signal2noise)
     return signal2noise >= threshold
 
 

@@ -5,7 +5,7 @@ import os
 from utils import parameter_file_read, mass_diff_read, expand_modification_ini, modification_ini_path, close_cfg_write, search_exe_path,\
     delete_file, remove_file
 from mass_diff_correction import close_mass_correct, small_delta_filter, mass_diff_diff_filter, mass_static, summary_write, \
-    mass_select, explain_dict_generate, new_summary_write, update_identification_efficiency    
+    mass_select, explain_dict_generate, new_summary_write, update_identification_efficiency, unify_close_mass_correct, unify_summary_write     
 from pparse import data_preprocess
 from confidence_set import accurate_mass_for_result_file
 
@@ -55,27 +55,73 @@ def new_close_search(current_path):
     close_path = os.path.join(parameter_dict['output_path'], 'close') 
     pfind_summary_path = os.path.join(close_path, 'pFind.summary')
     close_res_path = os.path.join(close_path, 'pFind-Filtered.spectra') 
-    mod_static_dict, mod_number_dict = mass_static(close_res_path, current_path, mass_diff_list, parameter_dict['side_position'])
-    mass_diff_dict, sim_mod_dict = close_mass_correct(current_path, close_res_path, mass_diff_list, parameter_dict, \
-                                    mass_diff_blind_dict, total_name_dict) 
-    print('most', mass_diff_dict) 
-    accurate_mass_for_result_file(pfind_summary_path, mass_diff_dict)
+    mod_static_dict, mod_number_dict = mass_static(close_res_path, current_path, mass_diff_list, parameter_dict['side_position'], parameter_dict, 'close')
 
-    explain_dict = explain_dict_generate(current_path)
-    close_pfind_path = os.path.join(close_path, 'pFind.summary') 
-    mod2pep = mod2pep_generate(close_pfind_path, mass_diff_list)
-    # print(mass_diff_dict)
-    
-    mass_diff_pair_rank = new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, parameter_dict, explain_dict, sim_mod_dict, pattern='close') 
-    # 对雷达图指标进行更新 
-    update_identification_efficiency(current_path, parameter_dict) 
-    
-    os.chdir(current_path)
-    
+    #print('most', mod_static_dict, mod_number_dict, total_name_dict) 
     reporting_result_path = os.path.join(original_output_path, 'reporting_summary')
-    close_result_path = os.path.join(parameter_dict['output_path'], 'close')
+
+    if parameter_dict['isotope_labeling'] == 'False': 
+
+        mass_diff_dict, sim_mod_dict, mod_std_dict, mod_r_dict = unify_close_mass_correct(current_path, close_res_path, mass_diff_list, parameter_dict, mass_diff_blind_dict) 
+        # print(mass_diff_dict, sim_mod_dict, mod_std_dict, mod_r_dict)
+
+        accurate_mass_for_result_file(pfind_summary_path, mass_diff_dict, parameter_dict) 
+        explain_dict = explain_dict_generate(current_path)
+        close_pfind_path = os.path.join(close_path, 'pFind.summary') 
+        mod2pep = mod2pep_generate(close_pfind_path, mass_diff_list) 
+
+        filter_mod, new_mass_diff_dict, new_mod_static_dict = unify_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, parameter_dict, \
+                                                explain_dict, sim_mod_dict, 'close', mod_std_dict, mod_r_dict) 
+
+        # 对雷达图指标进行更新 
+        update_identification_efficiency(current_path, parameter_dict) 
+    
+        os.chdir(current_path)
+
+        # 结果文件合并 
+        close_summary_path = os.path.join(reporting_result_path, 'pChem-close.summary') 
+        summary_path = os.path.join(reporting_result_path, 'pChem.summary') 
+        
+        file_clean(current_path, reporting_result_path)
+        if os.path.exists(close_summary_path) and os.path.exists(summary_path): 
+            summary_file_combine(close_summary_path, summary_path, parameter_dict) 
+            delete_file(reporting_result_path, 'pChem-close.summary') 
+            
+    else:
+
+        mass_diff_dict, sim_mod_dict, mod_std_dict, mod_r_dict = close_mass_correct(current_path, close_res_path, mass_diff_list, parameter_dict, \
+                                        mass_diff_blind_dict, total_name_dict) 
+    
+        accurate_mass_for_result_file(pfind_summary_path, mass_diff_dict, parameter_dict)
+
+        explain_dict = explain_dict_generate(current_path)
+        close_pfind_path = os.path.join(close_path, 'pFind.summary') 
+        mod2pep = mod2pep_generate(close_pfind_path, mass_diff_list)
+        # print(mass_diff_dict)
+    
+        mass_diff_pair_rank = new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, parameter_dict, \
+                                                        explain_dict, sim_mod_dict, 'close', mod_std_dict, mod_r_dict) 
+        # 对雷达图指标进行更新 
+        update_identification_efficiency(current_path, parameter_dict) 
+    
+        os.chdir(current_path)
+    
+        reporting_result_path = os.path.join(original_output_path, 'reporting_summary')
+        close_result_path = os.path.join(parameter_dict['output_path'], 'close')
 
     
+        # 出现[]可能是因为有个1000ppm的限制 
+        file_clean(current_path, reporting_result_path)
+
+        # 结果文件合并 
+        close_summary_path = os.path.join(reporting_result_path, 'pChem-close.summary') 
+        summary_path = os.path.join(reporting_result_path, 'pChem.summary') 
+        if os.path.exists(close_summary_path) and os.path.exists(summary_path): 
+            summary_file_combine(close_summary_path, summary_path, parameter_dict) 
+            delete_file(reporting_result_path, 'pChem-close.summary') 
+    
+
+def file_clean(current_path, reporting_result_path):
     delete_file(current_path, 'modification-null.ini')
     delete_file(current_path, 'modification-new.ini')
     delete_file(current_path, 'mass_diff_list.txt')
@@ -86,18 +132,9 @@ def new_close_search(current_path):
     delete_file(current_path, 'heat_map.pdf') 
     remove_file(current_path, 'pChem-close.summary', reporting_result_path)
     remove_file(current_path, 'radar.pdf', reporting_result_path)
-    # 出现[]可能是因为有个1000ppm的限制 
-    
-    # 结果文件合并 
-    close_summary_path = os.path.join(reporting_result_path, 'pChem-close.summary') 
-    summary_path = os.path.join(reporting_result_path, 'pChem.summary') 
-    if os.path.exists(close_summary_path) and os.path.exists(summary_path): 
-        summary_file_combine(close_summary_path, summary_path) 
-        delete_file(reporting_result_path, 'pChem-close.summary')
 
 
-
-def summary_file_combine(close_summary_path, original_path): 
+def summary_file_combine(close_summary_path, original_path, parameter_dict): 
     with open(close_summary_path, 'r', encoding='utf-8') as f: 
         close_lines = f.readlines() 
     with open(original_path, 'r', encoding='utf-8') as f: 
@@ -107,7 +144,10 @@ def summary_file_combine(close_summary_path, original_path):
     info_dict = {}
     for i in range(1, len(close_lines)):
         close_elem = close_lines[i].split('\t') 
-        info_dict[close_elem[1]] = [close_elem[2], close_elem[5], close_elem[6]]
+        if parameter_dict['isotope_labeling'] == 'False':
+            info_dict[close_elem[1]] = [close_elem[2], close_elem[5]]
+        else:
+            info_dict[close_elem[1]] = [close_elem[2], close_elem[5], close_elem[6]]
     # print(info_dict)
     for i in range(1, len(blind_lines)): 
         blind_elem = blind_lines[i].split('\t') 
@@ -115,8 +155,9 @@ def summary_file_combine(close_summary_path, original_path):
             info_list = info_dict[blind_elem[1]]
             # print(info_list)
             blind_elem[2] = info_list[0]
-            blind_elem[5] = info_list[1]
-            blind_elem[6] = info_list[2]
+            blind_elem[5] = info_list[1] 
+            if parameter_dict['isotope_labeling'] != 'False':
+                blind_elem[6] = info_list[2]
         line = ''
         for token in blind_elem:
             line += token + '\t' 

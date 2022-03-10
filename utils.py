@@ -1,6 +1,7 @@
 import os
 import shutil  
 
+
 # 读取参数行内容并返回
 def parameter_pick(line):
     eq_idx = line.find('=')
@@ -21,7 +22,8 @@ def parameter_modify(line, content):
 def parameter_file_read(path):
     with open(path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
-    parameter_dict = {}
+    parameter_dict = {} 
+    parameter_dict['psite_run'] = 'True'
 
     for i in range(len(lines)):
         if 'pfind_install' in lines[i]:
@@ -68,7 +70,12 @@ def parameter_file_read(path):
         if 'use_close_search' in lines[i]: 
             parameter_dict['use_close_search'] = parameter_pick(lines[i]) 
         if 'msmstype' in lines[i]: 
-            parameter_dict['msmstype'] = parameter_pick(lines[i])
+            parameter_dict['msmstype'] = parameter_pick(lines[i]) 
+        if 'report_statistical' in lines[i]: 
+            parameter_dict['report_statistical'] = parameter_pick(lines[i]) 
+        if 'isotope_labeling' in lines[i]: 
+            parameter_dict['isotope_labeling'] = parameter_pick(lines[i]) 
+        parameter_dict['close_mass_diff_number'] = 10
     return parameter_dict
 
 
@@ -216,7 +223,6 @@ def close_cfg_write(cfg_path, current_path, parameter_dict, mass_diff_pair_rank)
         for line in new_lines:
             f.write(line)
 
-    
 
 
 
@@ -239,8 +245,12 @@ def combine_common_list(current_path, parameter_dict, mass_diff_pair_rank):
         if mod_line[-1] != ';':
             mod_line += ';'
     '''
+
     for key in mass_diff_pair_rank: 
-        short_key = key.split('.')[0]
+        if parameter_dict['isotope_labeling'] == 'False':
+            short_key = 'PFIND_DELTA_' + key.split('.')[0]
+        else:
+            short_key = key.split('.')[0]
         mod_line += short_key + ';'
     
     flag = False 
@@ -433,7 +443,7 @@ def mass_diff_read(path):
 
 
 # 在盲搜确定修饰质量后，将其加入modification-new.ini文件
-def expand_modification_ini(mass_diff_pair_rank, mass_diff_dict, mod_static_dict, current_path, ini_path, refine_ion_list, exist_ion_flag_list):
+def expand_modification_ini(mass_diff_pair_rank, mass_diff_dict, mod_static_dict, current_path, ini_path, parameter_dict, refine_ion_list=None, exist_ion_flag_list=None):
     # new_mass_list = new_mass_list_generate(mass_diff_pair_rank, mass_diff_list)
     with open(ini_path, 'r', encoding='utf-8') as f:
         lines = f.readlines() 
@@ -456,7 +466,10 @@ def expand_modification_ini(mass_diff_pair_rank, mass_diff_dict, mod_static_dict
     #print(refine_ion_list)
 
     for key in mass_diff_pair_rank: 
-        short_key = key.split('.')[0]
+        if parameter_dict['isotope_labeling'] == 'False':
+            short_key = 'PFIND_DELTA_' + key.split('.')[0]
+        else:
+            short_key = key.split('.')[0]
         
         line1 = 'name' + str(num) + '=' + short_key + ' 0 \n'
         lines.append(line1)
@@ -472,7 +485,7 @@ def expand_modification_ini(mass_diff_pair_rank, mass_diff_dict, mod_static_dict
             #    + ' ' + str(mass_diff_dict[key]) 
         # 是否需要加入中性丢失 
         
-        if exist_ion_flag_list[ion_num//2] == True and ion_num < len(refine_ion_list) * 2 and len(refine_ion_list[ion_num//2][0]) >= 1: 
+        if exist_ion_flag_list is not None and exist_ion_flag_list[ion_num//2] == True and ion_num < len(refine_ion_list) * 2 and len(refine_ion_list[ion_num//2][0]) >= 1: 
             if ion_num % 2 == 0: 
                 line2 += ' 1 ' + str(refine_ion_list[ion_num//2][0][0]) + ' ' + str(refine_ion_list[ion_num//2][0][0]) + ' pFindDELTA \n' 
             else:

@@ -1,13 +1,13 @@
 from blind_search import blind_search 
 from close_identify import new_close_search 
-from utils import parameter_file_read, pfind_path_find
+from utils import parameter_file_read, pfind_path_find, delete_file
 
 import os 
 import shutil 
 from argparse import ArgumentParser 
 import time 
 
-def run():
+def run(): 
     current_path = os.getcwd() 
     print('Welcome to use pChem! (version 1.1)')
     
@@ -20,8 +20,9 @@ def run():
     
     cfg_path = os.path.join(current_path, 'pChem.cfg') 
     parameter_dict = parameter_file_read(cfg_path) 
+
     '''
-    target_path = [os.getcwd()]
+    target_path = [os.getcwd()] 
     # print(parameter_dict)
     pfind_path_find(parameter_dict['pfind_install_path'], target_path)
     if len(target_path) == 1: 
@@ -68,9 +69,10 @@ def run():
     else:
         print('blind search cost time (s): ', blind_time - start_time)
     
+    delete_file(current_path, 'psite.txt')
     
     
 
 if __name__ == "__main__": 
     run()
-    # os.system("pause")
+    os.system("pause")
