@@ -27,6 +27,7 @@ For python version:
 
 # Fast Usage 
 
+
 In this section, we provide a simple and fast usage instruction to familiarize with basic operations. 
 
 1. Set the parameter file *pChem.cfg*. You should set at least the path of fasta and msms dataset. Note that for pChem, we support the RAW or MZML formation for msms data. 
