@@ -1,4 +1,4 @@
-from collections import Counter 
+from collections import Counter
 import os 
 
 
@@ -64,6 +64,12 @@ def residual_compute(target_mass, mass_list):
     return r_value
 
 
+# 调用sklearn计算r方
+'''
+from sklearn.metrics import r2_score
+def r2_score_compute(target_mass_list, mass_list): 
+    return r2_score(target_mass_list, mass_list, multioutput='uniform_average')
+'''
 
 # 计算位点分布的可信度 
 from scipy.stats import binom_test 

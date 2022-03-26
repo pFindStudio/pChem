@@ -67,15 +67,21 @@ def parameter_file_read(path):
             parameter_dict['side_position'] = parameter_pick(lines[i]) 
         if 'activation_type' in lines[i]:
             parameter_dict['activation_type'] = parameter_pick(lines[i]) 
-        if 'use_close_search' in lines[i]: 
-            parameter_dict['use_close_search'] = parameter_pick(lines[i]) 
+        #if 'use_close_search' in lines[i]: 
+        #    parameter_dict['use_close_search'] = parameter_pick(lines[i]) 
         if 'msmstype' in lines[i]: 
             parameter_dict['msmstype'] = parameter_pick(lines[i]) 
-        if 'report_statistical' in lines[i]: 
+        if 'report_statistics' in lines[i]: 
             parameter_dict['report_statistical'] = parameter_pick(lines[i]) 
         if 'isotope_labeling' in lines[i]: 
             parameter_dict['isotope_labeling'] = parameter_pick(lines[i]) 
-        parameter_dict['close_mass_diff_number'] = 10
+        if 'p_value_threshold' in lines[i]:
+            parameter_dict['p_value_threshold'] = float(parameter_pick(lines[i]))
+        parameter_dict['close_mass_diff_number'] = 10 
+    if parameter_dict['isotope_labeling'] == 'True':
+        parameter_dict['use_close_search'] = 'True'
+    else:
+        parameter_dict['use_close_search'] = 'False'
     return parameter_dict
 
 

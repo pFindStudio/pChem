@@ -74,7 +74,7 @@ def new_close_search(current_path):
                                                 explain_dict, sim_mod_dict, 'close', mod_std_dict, mod_r_dict) 
 
         # 对雷达图指标进行更新 
-        update_identification_efficiency(current_path, parameter_dict) 
+        # update_identification_efficiency(current_path, parameter_dict) 
     
         os.chdir(current_path)
 
@@ -141,6 +141,9 @@ def summary_file_combine(close_summary_path, original_path, parameter_dict):
         blind_lines = f.readlines() 
     new_lines = [close_lines[0]]
 
+    #print('close:', close_lines)
+    #print('blind:', blind_lines)
+
     info_dict = {}
     for i in range(1, len(close_lines)):
         close_elem = close_lines[i].split('\t') 
@@ -148,7 +151,7 @@ def summary_file_combine(close_summary_path, original_path, parameter_dict):
             info_dict[close_elem[1]] = [close_elem[2], close_elem[5]]
         else:
             info_dict[close_elem[1]] = [close_elem[2], close_elem[5], close_elem[6]]
-    # print(info_dict)
+    # print('info_dict', info_dict)
     for i in range(1, len(blind_lines)): 
         blind_elem = blind_lines[i].split('\t') 
         if blind_elem[1] in info_dict.keys():
@@ -160,11 +163,11 @@ def summary_file_combine(close_summary_path, original_path, parameter_dict):
                 blind_elem[6] = info_list[2]
         line = ''
         for token in blind_elem:
-            line += token + '\t' 
-        new_lines.append(line[:-1]) 
+            line += token.strip() + '\t' 
+        new_lines.append(line.strip() + '\n') 
 
     sort_lines = sorted(new_lines[1:], key=lambda k: int(k.strip().split('\t')[5]), reverse=True) 
-    idx = 0 
+    idx = 1
     new_sort_lines = [new_lines[0]]
     for line in sort_lines:
         new_line = str(idx) + '\t' + line.split('\t', 1)[1] 
@@ -222,7 +225,7 @@ def close_search(current_path):
     
     # 对未知质量数质量做校正
     mass_diff_dict = close_mass_correct(current_path, blind_path, mass_diff_list)
-    print(mass_diff_dict)
+    # print(mass_diff_dict)
 
     
     # 统计未知质量发生的位点 

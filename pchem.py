@@ -61,13 +61,17 @@ def run():
     start_time = time.time() 
     blind_search(current_path) 
     blind_time = time.time()  
+    
+
     if parameter_dict['use_close_search'] == 'True':
         new_close_search(current_path) 
         close_time = time.time() 
-        print('blind search cost time (s): ', blind_time - start_time)
-        print('restricted search cost time (s): ', close_time - blind_time)
+        print('[time cost]')
+        print('blind search cost time (s): ', round(blind_time - start_time, 1))
+        print('restricted search cost time (s): ', round(close_time - blind_time, 1))
     else:
-        print('blind search cost time (s): ', blind_time - start_time)
+        print('[time cost]')
+        print('blind search cost time (s): ', round(blind_time - start_time, 1))
     
     delete_file(current_path, 'psite.txt')
     

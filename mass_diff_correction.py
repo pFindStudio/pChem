@@ -1,5 +1,4 @@
 # 对盲搜鉴定到的修饰，进行质量校正
-from lib2to3.pgen2.literals import simple_escapes
 import os 
 import numpy as np 
 from collections import Counter 
@@ -656,6 +655,8 @@ def mod_name_refine(key):
 def new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, \
                         parameter_dict, unimod_dict, sim_mod_number=None, pattern='blind',  mod_std_dict=None, mod_r_dict=None): 
     
+    # p_valaue过滤阈值
+    p_value_threshold = parameter_dict['p_value_threshold']
     
     mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, rank_dict, label_dict, mass_diff_rank, mass_diff_pair_rank, unimod_list, ppm_error_dict = \
         mass_refine(mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, parameter_dict, unimod_dict, pattern) 
@@ -675,6 +676,8 @@ def new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, m
     idx = 1 
     
     prob_dict = {} 
+    p_disable_pos = {} 
+    template_mod_static_dict = {}
     # 用于中性丢失算法去异常点 
     summary_mass_dict = {}
     for mass_pair in mass_diff_pair_rank: 
@@ -683,16 +686,18 @@ def new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, m
         local_list = mod_static_dict[light_mod].most_common() 
         # print(local_list)
         local_list = psite_run(parameter_dict, current_path, light_mod, pattern, local_list)
-
+        template_mod_static_dict[light_mod] = local_list 
         # 计算p-value需要信息： mod name、position_list、parameter_dict、 pattern-> 去不同搜索结果里面统计先验频率 
-        if parameter_dict['report_statistical'] == 'True': 
-            p_dict = p_value_for_mod(light_mod, local_list, parameter_dict, pattern) 
+        
+        p_dict = p_value_for_mod(light_mod, local_list, parameter_dict, pattern) 
         # print(local_list)
         prob_dict[light_mod] = []
+        p_disable_pos[light_mod] = []
         Top1_site = local_list[0][0]
         
         Others = '' 
         residual_pro = 0.0 
+        t_residual_pro = 0.0 
         factor = (new_mod_number_dict[light_mod] - mod_number_dict[light_mod] + local_list[0][1]) * mod_number_dict[light_mod] / new_mod_number_dict[light_mod] /  local_list[0][1] 
 
         if Top1_site == 'N-SIDE' or Top1_site == 'C-SIDE': 
@@ -703,28 +708,42 @@ def new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, m
             parent_num = new_mod_number_dict[light_mod] 
         
 
+        write_flag = True 
+        
         for j in range(1, len(local_list)):
             temp_pro = local_list[j][1] / parent_num 
             if local_list[j][0] == 'N-SIDE' or local_list[j][0] == 'C-SIDE':
                 temp_pro = temp_pro * parent_num * factor / mod_number_dict[light_mod] 
-            prob_dict[light_mod].append([local_list[j][0], temp_pro])
-            if parameter_dict['report_statistical'] == 'True': 
-                Others += local_list[j][0] + '(' + str(round(temp_pro, 3)) + ', ' + str(p_dict[local_list[j][0]]) + ');  ' 
+            # prob_dict[light_mod].append([local_list[j][0], temp_pro]) 
+
+            if float(p_dict[local_list[j][0]]) > p_value_threshold:
+                write_flag = False
+            if write_flag == True:
+                if parameter_dict['report_statistical'] == 'True': 
+                    Others += local_list[j][0] + '(' + str(round(temp_pro, 3)) + ', ' + str(p_dict[local_list[j][0]]) + ');  ' 
+                else:
+                    Others += local_list[j][0] + '(' + str(round(temp_pro, 3)) + ');  ' 
+                t_residual_pro += temp_pro 
+                prob_dict[light_mod].append([local_list[j][0], temp_pro]) 
             else:
-                Others += local_list[j][0] + '(' + str(round(temp_pro, 3)) + ');  ' 
+                p_disable_pos[light_mod].append(local_list[j][0])  
             if local_list[j][0] == 'N-SIDE' or local_list[j][0] == 'C-SIDE': 
                 continue
             residual_pro += temp_pro  
         
         summary_mass_dict[light_mod] = [Top1_site, mass_diff_dict[light_mod]]
 
+        t_top1_pro = 1.0
         if Top1_site == 'N-SIDE' or Top1_site == 'C-SIDE': 
             if parent_num > 0:
                 Top1_pro = local_list[0][1] / parent_num
+                t_top1_pro = Top1_pro 
             else: 
                 Top1_pro = 1.0
         else: 
-            Top1_pro =  1 - residual_pro
+            Top1_pro =  1 - residual_pro 
+            t_top1_pro = 1 - t_residual_pro 
+        t_top1_pro = max(t_top1_pro, min(1.0, Top1_pro))
         Top1_pro = str(round(min(1.0, Top1_pro), 3)) 
         prob_dict[light_mod].append([Top1_site, Top1_pro]) 
 
@@ -749,6 +768,7 @@ def new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, m
         for line in lines:
             f.write(line) 
     # 删除PSM 
+    # print(p_disable_pos)
     filter_mod = [mod[0] for mod in mass_diff_pair_rank] 
     if pattern == 'blind': 
         filter_mod = summary_filter(current_path, parameter_dict, filter_mod, pattern, summary_path, prob_dict) 
@@ -757,7 +777,7 @@ def new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, m
         print('The number of unknown modification is none, please expand the error range.')
     else: 
         if pattern == 'blind':
-            heat_map_plot(current_path, filter_mod, mod_static_dict, mod_number_dict, new_mod_number_dict) 
+            heat_map_plot(current_path, filter_mod, template_mod_static_dict, mod_number_dict, new_mod_number_dict, p_disable_pos) 
     
     
     # 对所有的筛选后的未知修饰做中性丢失
@@ -785,19 +805,22 @@ def new_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, m
 def unify_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, \
                         parameter_dict, unimod_dict, sim_mod_number=None, pattern='blind',  mod_std_dict=None, mod_r_dict=None): 
     
-    
+    # p_valaue过滤阈值
+    p_value_threshold = parameter_dict['p_value_threshold']
+
     new_mod_static_dict, new_mod_number_dict, new_mod2pep, new_mass_diff_dict  = \
         unify_mass_refine(mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict, parameter_dict, unimod_dict, pattern) 
     # print(mod_number_dict)
     
+
     new_mod_number_dict = mod_number_update(new_mod_number_dict, sim_mod_number) 
     mod_number_dict = sim_mod_number
     lines = [] 
     if parameter_dict['report_statistical'] == 'False': 
-        lines.append('Rank \tPDM \tAccurate Mass \
+        lines.append('Rank \tModification \tAccurate Mass \
                     \tTop1 Site|Probability \t Others \t #PSM \n')
     else:
-        lines.append('Rank \tPDM \tAccurate Mass (std, r-squared) \
+        lines.append('Rank \tModification \tAccurate Mass (std, r-squared) \
                     \tTop1 Site | Probability | p-value \t Others \t #PSM \n')
     
     # print('yi?:', new_mod_static_dict, new_mod_number_dict, new_mod2pep, new_mass_diff_dict)
@@ -819,10 +842,10 @@ def unify_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep,
         local_list = psite_run(parameter_dict, current_path, light_mod, pattern, local_list)
 
         # 计算p-value需要信息： mod name、position_list、parameter_dict、 pattern-> 去不同搜索结果里面统计先验频率 
-        if parameter_dict['report_statistical'] == 'True': 
-            p_dict = p_value_for_mod(light_mod, local_list, parameter_dict, pattern) 
+         
+        p_dict = p_value_for_mod(light_mod, local_list, parameter_dict, pattern) 
         # print('after', local_list)
-        prob_dict[light_mod] = []
+        prob_dict[light_mod] = [] 
         Top1_site = local_list[0][0]
         
         Others = '' 
@@ -836,16 +859,20 @@ def unify_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep,
         else: 
             parent_num = new_mod_number_dict[light_mod] 
         
-
+        write_flag = True 
         for j in range(1, len(local_list)):
             temp_pro = local_list[j][1] / parent_num 
             if local_list[j][0] == 'N-SIDE' or local_list[j][0] == 'C-SIDE':
                 temp_pro = temp_pro * parent_num * factor / mod_number_dict[light_mod] 
             prob_dict[light_mod].append([local_list[j][0], temp_pro])
-            if parameter_dict['report_statistical'] == 'True': 
-                Others += local_list[j][0] + '(' + str(round(temp_pro, 3)) + ', ' + str(p_dict[local_list[j][0]]) + ');  ' 
-            else:
-                Others += local_list[j][0] + '(' + str(round(temp_pro, 3)) + ');  ' 
+
+            if float(p_dict[local_list[j][0]]) > p_value_threshold: 
+                write_flag = False
+            if write_flag == True:
+                if parameter_dict['report_statistical'] == 'True': 
+                    Others += local_list[j][0] + '(' + str(round(temp_pro, 3)) + ', ' + str(p_dict[local_list[j][0]]) + ');  ' 
+                else:
+                    Others += local_list[j][0] + '(' + str(round(temp_pro, 3)) + ');  ' 
             if local_list[j][0] == 'N-SIDE' or local_list[j][0] == 'C-SIDE': 
                 continue
             residual_pro += temp_pro  
@@ -887,11 +914,12 @@ def unify_summary_write(current_path, mod_static_dict, mod_number_dict, mod2pep,
     if pattern == 'blind': 
         filter_mod = summary_filter(current_path, parameter_dict, filter_mod, pattern, summary_path, prob_dict) 
     # 同时保存热力图 
-    if len(lines) < 2: 
-        print('The number of unknown modification is none, please expand the error range.')
-    else: 
-        if pattern == 'blind':
-            heat_map_plot(current_path, filter_mod, new_mod_static_dict, new_mod_number_dict, new_mod_number_dict) 
+    #if parameter_dict['report_statistical'] != 'False':
+    #    if len(lines) < 2: 
+    #        print('The number of unknown modification is none, please expand the error range.')
+    #    else: 
+    #        if pattern == 'blind':
+    #            heat_map_plot(current_path, filter_mod, new_mod_static_dict, new_mod_number_dict, new_mod_number_dict) 
     
     '''
     # 这个模式下不再需要中性丢失
@@ -932,9 +960,10 @@ def add_ion_summary(summary_path, refine_ion_list, exist_ion_flag_list, summary_
             # 只显示轻标中性丢失 
             # add_info = list2string(refine_ion_list[i][0]) + ' |' + list2string(refine_ion_list[i][1]) + '\n'
             add_info = list2string(refine_ion_list[i]) + '\n'
-            lines[i+1] = lines[i+1][:-1] + '\t' + add_info 
+            # lines[i+1] = lines[i+1][:-1] + '\t' + add_info 
+            lines[i+1] = lines[i+1].strip() + '\t' + add_info 
     sort_lines = sorted(lines[1:], key=lambda k: int(k.strip().split('\t')[5]), reverse=True) 
-    idx = 0 
+    idx = 1
     new_sort_lines = [lines[0]]
     for line in sort_lines:
         new_line = str(idx) + '\t' + line.split('\t', 1)[1] 
@@ -985,7 +1014,7 @@ def ion_function_input(light_mass, mass_diff_dict, mass_diff):
 
 
 # 绘制结果热力图
-def heat_map_plot(current_path, filter_mod, mod_static_dict, mod_number_dict, new_mod_number_dict): 
+def heat_map_plot(current_path, filter_mod, mod_static_dict, mod_number_dict, new_mod_number_dict, p_disable_pos): 
     y_stick = ["N-SIDE", "C-SIDE", "A", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "V", "W", "Y"] 
     y_dict = {}
     for i in range(len(y_stick)):
@@ -994,14 +1023,17 @@ def heat_map_plot(current_path, filter_mod, mod_static_dict, mod_number_dict, ne
     x_stick = filter_mod
     mod_map = {}
     
-    
+    #print(p_disable_pos)
     for i in range(len(x_stick)):
+        diable_pos_list = p_disable_pos[x_stick[i]] 
+        # print('list:', diable_pos_list, x_stick[i]) 
+
         freq_list = [0.0] * len(y_stick) 
-        local_list = mod_static_dict[x_stick[i]].most_common() 
+        # local_list = mod_static_dict[x_stick[i]].most_common() 
+        local_list = mod_static_dict[x_stick[i]]
         Top1_site = local_list[0][0]
         residual_pro = 0.0 
         factor = (new_mod_number_dict[x_stick[i]] - mod_number_dict[x_stick[i]] + local_list[0][1]) * mod_number_dict[x_stick[i]] / new_mod_number_dict[x_stick[i]] /  local_list[0][1] 
-
 
         if Top1_site == 'N-SIDE' or Top1_site == 'C-SIDE': 
             parent_num = 0 
@@ -1017,7 +1049,13 @@ def heat_map_plot(current_path, filter_mod, mod_static_dict, mod_number_dict, ne
             cur_freq = round(local_list[j][1]/parent_num, 3) 
             if cur_position == 'N-SIDE' or cur_position == 'C-SIDE': 
                 cur_freq = cur_freq * parent_num * factor / mod_number_dict[x_stick[i]]
-            freq_list[y_dict[cur_position]] = cur_freq 
+
+            # print(cur_position)
+            if cur_position not in diable_pos_list: 
+                freq_list[y_dict[cur_position]] = cur_freq 
+            #else:
+            #    print('filter:', cur_position) 
+
             if cur_position == 'N-SIDE' or cur_position == 'C-SIDE': 
                 continue 
             residual_pro += cur_freq 
@@ -1026,6 +1064,8 @@ def heat_map_plot(current_path, filter_mod, mod_static_dict, mod_number_dict, ne
             Top1_pro = round(local_list[0][1] / parent_num, 3)
         else: 
             Top1_pro = round(1 - residual_pro, 3) 
+        if Top1_site not in y_dict.keys():
+            Top1_site = 'C'
         freq_list[y_dict[Top1_site]] = Top1_pro 
 
         mod_map[x_stick[i]] = freq_list 
@@ -1084,7 +1124,7 @@ def unify_mass_refine(mod_static_dict, mod_number_dict, mod2pep, mass_diff_dict,
     new_mod_static_dict, new_mod_number_dict, new_mod2pep, new_mass_diff_dict = {}, {}, {}, {}
     new_mass_list = [] 
     int_mass_list = [] 
-    print('mass_refibe:', mod_static_dict)
+    # print('mass_refibe:', mod_static_dict)
     for mass in mod_static_dict: 
         if mass not in mass_diff_dict.keys():
             continue
@@ -1362,7 +1402,7 @@ def summary_filter(current_path, parameter_dict, filter_mod, pattern, summary_pa
         if len(line) < 5:
             break 
         total_psm += int(line.split('\t')[5]) 
-    print(total_psm)
+    #print(total_psm)
     if pattern == 'blind':
         min_psm = parameter_dict['filter_frequency'] * total_psm * 0.01 
     else:
@@ -1384,10 +1424,11 @@ def summary_filter(current_path, parameter_dict, filter_mod, pattern, summary_pa
         for line in new_lines: 
             f.write(line) 
     
-
-    if pattern == 'blind' and parameter_dict['use_close_search'] == 'True': 
+    if parameter_dict['isotope_labeling'] != 'False': 
+        if pattern == 'blind' and parameter_dict['use_close_search'] == 'True': 
         # print('plot radar!')
-        metric_evaluation(current_path, parameter_dict, summary_path, new_filter_mod, prob_dict)  
+            # print(parameter_dict['use_close_search'])
+            metric_evaluation(current_path, parameter_dict, summary_path, new_filter_mod, prob_dict)  
 
     return new_filter_mod
 
@@ -1412,6 +1453,7 @@ def metric_evaluation(current_path, parameter_dict, summary_path, new_filter_mod
     # print(prob_dict)
     select_pos_summary = 0 
     psm_summary = 0 
+    refine_summary = 0 
     max_psm = 0  
     mod_name = ''
     if len(lines) < 2:
@@ -1422,7 +1464,7 @@ def metric_evaluation(current_path, parameter_dict, summary_path, new_filter_mod
         line = lines[i].split('\t') 
         # light_mod = line[1]
         mod_name = line[1][12:]
-        prob_list = prob_dict[mod_name]
+        prob_list = prob_dict[mod_name] 
         cur_psm = int(line[5]) 
         psm_summary += cur_psm 
         # line3 = line[3].split('|')
@@ -1431,22 +1473,31 @@ def metric_evaluation(current_path, parameter_dict, summary_path, new_filter_mod
             # print(top1_pos)
             max_psm = cur_psm 
         for pair in prob_list:
-            if pair[0] == top1_pos:
+            if pair[0] == top1_pos: 
                 select_pos_summary += float(pair[1])*cur_psm 
+            if 'SIDE' not in pair[0]:
+                tmp = float(pair[1])*cur_psm 
+                refine_summary += tmp
+        #if i == 1:
+        # select_pos_summary += float(prob_list[-1][1])*cur_psm 
+        #else:
+        #    select_pos_summary += cur_psm 
         #cur_pos = line[3] 
         #if cur_pos == top1_pos: 
         #    select_pos_summary += float(line3[1])*cur_psm 
     
     #print(psm_summary/total_psm)
     #print(max_psm/psm_summary)
-    #print(select_pos_summary/psm_summary)
-    x = [psm_summary/total_psm*100.0, max_psm/psm_summary*100.0, select_pos_summary/psm_summary*100.0] 
+    #print(select_pos_summary/psm_summary) 
+    # print(refine_summary)
+    x = [psm_summary/total_psm*100.0, max_psm/psm_summary*100.0, select_pos_summary/refine_summary*100.0] 
 
     # x = update_pos_selectivity(x, parameter_dict, new_filter_mod) 
 
     metric_path = os.path.join(current_path, 'pChem.metric')
     metric2summary(metric_path, x) 
-    # print('metric', x)
+    # print('metric', x) 
+    
     radar_plot(x, current_path, mod_name)
 
 
@@ -1544,7 +1595,10 @@ def update_identification_efficiency(current_path, parameter_dict):
     metric_path = os.path.join(current_path, 'pChem.metric') 
     x = metric_file_read(metric_path) 
     x[0] = psm_summary/total_psm*100.0 
-    print(x)
+    print('[probe evaluation metric]')
+    print('profiling efficiency: ', str(round(x[0],2)))
+    print('PDM homogeneity: ', str(round(x[1],2)))
+    print('residue selectivity: ', str(round(x[2],2)))
     radar_plot(x, current_path)
 
 
