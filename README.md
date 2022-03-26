@@ -14,7 +14,9 @@ Please send any questions, comments or bug reports to feizhengcong@ict.ac.cn.
 
 # Download 
 
-The software can be downloaded from [google drive](https://drive.google.com/file/d/11hYJI1cB9T-WV91_OyW5rDvYhgjTjzRv/view?usp=sharing). 
+The software can be downloaded from [google drive](https://drive.google.com/file/d/1QNZGj-kaaMGXab4-HWuPeMsOf9sll53T/view?usp=sharing). 
+
+The user guide can be found in [web](http://pfind.org/software/pChem/index.html).
 
 # Requirements 
 
