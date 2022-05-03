@@ -1,8 +1,6 @@
-# pChem
+# pChem: A modification-centric assessment tool for performance of chemoproteomic probes
 
-A modification-centric assessment tool for performance of chemoproteomic probes
-
-# Introduction 
+## 1. Introduction 
 
 Chemical probe coupled with mass spectrometry (MS)-based proteomics, herein termed chemoproteomics, offers versatile tools to globally profile protein features and to systematically interrogate the mode of action of small molecules in a native biological system. Nonetheless, development of an efficient and selective probe for chemoproteomics can still be challenging. Besides, it is also difficult to unbiasedly assess its chemoselectivity at a proteome-wide scale. Here we present pChem, a modification-centric blind search and summarization tool to provide a pipeline for rapid and unbiased assessing of the performance of ABPP and metabolic labeling probes. This pipeline starts experimentally by isotopic coding of PDMs, which can be automatically recognized, paired, and accurately reported by pChem, further allowing users to score the profiling efficiency, modification-homogeneity and proteome-wide residue selectivity of a chemoproteomic probe.
 
@@ -12,13 +10,13 @@ For the ease of usage, we provide executable files (.exe) that can run in any en
 
 Please send any questions, comments or bug reports to feizhengcong@ict.ac.cn.  
 
-# Download 
+## 2. Download 
 
 The software can be downloaded from [google drive](https://drive.google.com/file/d/1QNZGj-kaaMGXab4-HWuPeMsOf9sll53T/view?usp=sharing). 
 
 The user guide can be found in [web](http://pfind.org/software/pChem/index.html).
 
-# Requirements 
+## 3. Requirements 
 
 For python version: 
 
@@ -27,7 +25,7 @@ For python version:
 * matplotlib 
 * pandas 
 
-# Fast Usage 
+## 4. Fast Usage 
 
 
 In this section, we provide a simple and fast usage instruction to familiarize with basic operations. 
