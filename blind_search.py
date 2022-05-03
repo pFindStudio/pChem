@@ -4,7 +4,7 @@ import os
 from utils import parameter_file_read, modification_ini_path, modification_ini_dict, \
     modification_ini_generation, blind_cfg_write, search_exe_path, mass_diff_list_generate, \
     modification_ini_generation_from_param, mass_diff_read, expand_modification_ini, add_mass_list, \
-    close_cfg_write, new_mass_list_generate, delete_file, remove_file
+    close_cfg_write, new_mass_list_generate, delete_file, remove_file, summary_remove_second_col
 from mass_diff_correction import mass_correct, small_delta_filter, \
     mass_static, summary_write, mass_select, new_summary_write, unimod_dict_generate, \
     summary_filter, explain_dict_generate, unify_summary_write
@@ -64,7 +64,8 @@ def blind_search(current_path):
     blind_path = os.path.join(parameter_dict['output_path'], 'blind') 
     pfind_summary_path = os.path.join(blind_path, 'pFind.summary')
     blind_path = os.path.join(blind_path, 'pFind-Filtered.spectra')
-    #print(mass_diff_list)
+    
+    
     
     # 对得到的未知质量数进行过滤和统计 
 
@@ -75,16 +76,17 @@ def blind_search(current_path):
 
     # 过滤小于200和复数修饰 
     name2mass, mass_diff_list = small_delta_filter(mass_diff_list, parameter_dict) 
+    
     mod_static_dict, mod_number_dict = mass_static(blind_path, current_path, mass_diff_list, parameter_dict['side_position'], parameter_dict)  # 统计位点分布
+    #print(mod_number_dict)
+    #print(mod_static_dict)
 
     # 计算精确质量 
     #system_correct={mean, median}, mod_correct={mean, median, weight}
     mass_diff_dict, sim_mod_number_dict,  mod_std_dict, mod_r_dict = mass_correct(current_path, blind_path, mass_diff_list, parameter_dict, system_correct='mean', mod_correct='mean') 
     #mass_diff_dict = mass_correct(current_path, blind_path, mass_diff_list, system_correct='median', mod_correct='median') 
 
-    #print(mass_diff_dict)
-    
-    #print(mod_static_dict)
+    print('initia:', mass_diff_dict)
     # 质量写入pFind鉴定结果文件
     accurate_mass_for_result_file(pfind_summary_path, mass_diff_dict, parameter_dict) 
     ini_path = modification_ini_path(parameter_dict) 
@@ -128,6 +130,8 @@ def blind_search(current_path):
     os.chdir(current_path)
     
     reporting_result_path = os.path.join(original_output_path, 'reporting_summary')
+    summary_filter_path = os.path.join(current_path, 'pChem.summary')
+
     if not os.path.exists(reporting_result_path): 
         os.makedirs(reporting_result_path) 
 
@@ -136,12 +140,13 @@ def blind_search(current_path):
         with open('mod_list.txt', 'w', encoding='utf-8') as f: 
             for m in mass_diff_pair_rank:
                 f.write(m + ' ' + str(mass_diff_dict[m]) + '\n') 
-    else:
+    else: 
+        summary_remove_second_col(summary_filter_path)
         delete_file(current_path, 'modification-null.ini')
         delete_file(current_path, 'mass_diff_list.txt')
         delete_file(current_path, 'pChem.metric')
         delete_file(current_path, 'modification-new.ini') 
-    summary_filter_path = os.path.join(current_path, 'pChem.summary')
+    
     blind_result_path = os.path.join(parameter_dict['output_path'], 'blind')
     blind_summary_path = os.path.join(blind_result_path, 'pChem.blind.summary')
     shutil.copyfile(summary_filter_path, blind_summary_path)

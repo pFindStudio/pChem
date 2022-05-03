@@ -3,7 +3,7 @@
 
 import os 
 from utils import parameter_file_read, mass_diff_read, expand_modification_ini, modification_ini_path, close_cfg_write, search_exe_path,\
-    delete_file, remove_file
+    delete_file, remove_file, summary_remove_second_col
 from mass_diff_correction import close_mass_correct, small_delta_filter, mass_diff_diff_filter, mass_static, summary_write, \
     mass_select, explain_dict_generate, new_summary_write, update_identification_efficiency, unify_close_mass_correct, unify_summary_write     
 from pparse import data_preprocess
@@ -118,6 +118,7 @@ def new_close_search(current_path):
         summary_path = os.path.join(reporting_result_path, 'pChem.summary') 
         if os.path.exists(close_summary_path) and os.path.exists(summary_path): 
             summary_file_combine(close_summary_path, summary_path, parameter_dict) 
+            summary_remove_second_col(summary_path)
             delete_file(reporting_result_path, 'pChem-close.summary') 
     
 

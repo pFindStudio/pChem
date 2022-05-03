@@ -467,7 +467,7 @@ def expand_modification_ini(mass_diff_pair_rank, mass_diff_dict, mod_static_dict
     num = int(num) + 1 
     ion_num = 0 
 
-    #print(mass_diff_pair_rank)
+    # print(mass_diff_pair_rank)
     #print(exist_ion_flag_list)
     #print(refine_ion_list)
 
@@ -550,3 +550,23 @@ def pfind_path_find(path, target_path, name='pFind.exe.config'):
             if name in item: 
                 target_path.append(item_path[:-21])
                 
+
+
+# 对结果输出文件去掉第2列
+def summary_remove_second_col(path): 
+    with open(path, 'r', encoding='utf-8') as f: 
+        lines = f.readlines() 
+    new_lines = []
+    for line in lines: 
+        line_list = line.split('\t')
+        new_line = '' 
+        for i in range(len(line_list)): 
+            if i == 1:
+                continue  
+            new_line +=  line_list[i].strip() + '\t' 
+        new_line += '\n' 
+        new_lines.append(new_line) 
+    with open(path, 'w', encoding='utf-8') as f: 
+        for l in new_lines: 
+            f.write(l) 
+

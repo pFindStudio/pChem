@@ -89,7 +89,6 @@ def position_test(position_counter, prior_distribution):
 
 
 
-
 # 统计位点分布的先验频率
 def prior_distribution_compute(file_path, mod): 
 
@@ -111,7 +110,9 @@ def prior_distribution_compute(file_path, mod):
                 num += 1  
             prior_distribution['N-SIDE'] += 1
             prior_distribution['C-SIDE'] += 1 
-    #print(prior_distribution)
+    #print(prior_distribution) 
+    if num == 0:
+        num += 1
     for key in prior_distribution.keys(): 
         prior_distribution[key] = float(prior_distribution[key] / num) 
     #print(num)
@@ -147,7 +148,10 @@ def p_value_for_mod(mod_name, position_list, parameter_dict, pattern):
 
     p_value_dict = {} 
     for pair in position_list: 
-        p_value_dict[pair[0]] = format(binom_test(pair[1], total_trail, p=prior_distribution[pair[0]], alternative='greater'), '.4f')
+        if pair[0] in prior_distribution.keys():
+            p_value_dict[pair[0]] = format(binom_test(pair[1], total_trail, p=prior_distribution[pair[0]], alternative='greater'), '.4f')
+        else:
+            p_value_dict[pair[0]] = 1.0
     return p_value_dict 
     
 

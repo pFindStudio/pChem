@@ -32,8 +32,7 @@ def run():
         print('More than one pFind are installed in current path, please set in detail!')
         return  
     parameter_dict['pfind_install_path'] = target_path[1]
-    '''
-
+    ''' 
     
     # 判断参数的正确性
     '''
