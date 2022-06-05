@@ -61,7 +61,7 @@ def run():
     blind_search(current_path) 
     blind_time = time.time()  
     
-
+    parameter_dict['use_close_search'] = 'False'
     if parameter_dict['use_close_search'] == 'True':
         new_close_search(current_path) 
         close_time = time.time() 

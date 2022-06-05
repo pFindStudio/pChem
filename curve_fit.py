@@ -142,6 +142,7 @@ def mass_read(blind_path, target_mass):
     times = 1 
 
     while True: 
+        break
         if len(data) <= 100:
             break
         a = [] 

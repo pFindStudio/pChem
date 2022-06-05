@@ -204,7 +204,7 @@ def freq_line_plot(total_ion_diff_counter):
 
 
 # 绘制论文里面的图 
-def freq_point_plot(total_ion_diff_counter): 
+def freq_point_plot(total_ion_diff_counter, modification): 
     xy_pair = []
     x = []
     y = [] 
@@ -220,6 +220,11 @@ def freq_point_plot(total_ion_diff_counter):
     for xy in xy_pair:
         x.append(xy[0])
         y.append(xy[1])
+
+    with open(modification+'.txt', 'w', encoding='utf-8') as f: 
+        for xy in xy_pair:
+            line = str(xy[0]) + '\t' +str(xy[1]) + '\n' 
+            f.write(line)
 
     plt.plot(x, y, 'r-', alpha=0.6)
     plt.xlabel('Offset')
@@ -396,9 +401,9 @@ def ion_type_determine(current_path, modification_list, modification_dict, param
         # total_ion_diff_list: 所有质量差组成的列表 
         total_ion_diff_counter, total_ion_diff_list, total_weight_ion_diff_list = ion_type_compute(filtered_res, modification, modification_dict[modification], common_modification_dict, mass_spectra_dict) 
         # 画频率图 
-        # freq_point_plot(total_ion_diff_counter)
+        # freq_point_plot(total_ion_diff_counter, modification)
         # print(total_ion_diff_counter)
-        #freq_line_plot(total_ion_diff_counter) 
+        # freq_line_plot(total_ion_diff_counter) 
         # freq_analysis(total_ion_diff_counter)
 
         # 判断是否存在中性丢失 

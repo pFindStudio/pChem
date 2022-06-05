@@ -147,7 +147,9 @@ def static_for_18_probs():
     
     
     fig, ax = plt.subplots()  
-
+    print('detail: ')
+    for l in final_list: 
+        print(l)
     # ax.boxplot(final_list) 
     ax.violinplot(final_list)
     ax.set_xlabel('ppm')

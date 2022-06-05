@@ -5,21 +5,24 @@ from pchem import run
 from curve_fit import mass_read, ppm_calculate 
 
 
-raw_list=['QE_Plus_YJ_FL_50per_20190501_F1_R1.raw', 'QE_Plus_YJ_HJX_NPM_PH8_50per_20190820_F1_R2.raw',
-            'QE_Plus_YJ_HJX_ENE8_50per_20191002_F1_R1.raw', 'HFX_YangJing_HJX_VSF_R1_20210319.raw',
-            'QE_Plus_YJ_HJX_3_PPMS-P8_50per_20190822_F1_R1.raw', 'HFX_YangJing_HeJiXiang_STP-1_20210515_R1.raw', 
-            'HFX_YangJing_HJX_NHS100_20210607_R1.raw', 'HFX_YangJing_HeJiXiang_Dia_1_20210401.raw',  
-            'QE_Plus_YangJing_APEX_L2_Elution_TCP_100per_20180815.raw', 'QE_Plus_TCP_HRP_Tyr_20200113_F1_R1.raw',
-            'SulfenQ_H2O2_LH_C1.raw', 'QE_Plus_YangJing_FL_SOH-55_50per_20170618.raw',
-            'QE_Plus_YangJing_WYne_C_TCP_50per_20180823.raw', 'QE_Plus_YangJing_WYne_N_TCP_50per_20180823.raw',
-            'QE_Plus_YangJing_WYne_O_TCP_50per_20180823.raw',  'QE_Plus_YangJing_FL_ALK_50per_20170531.raw',
-            'RKO_aHNE_PC0h_BR1_T1.raw','JY_RKO_aONE_PC0h_20150419_BR1_T1.raw']
-
 wangchu_list = ['20181026_1TO1_1.raw', '20181026_1TO2_1.raw', '20181026_1TO5_1.raw', '20181026_1TO10_1.raw'] 
 wangchu_mass_list = [[521.30743, 527.32124],
                     [521.30743, 527.32124],
                     [521.30743, 527.32124],
                     [521.30743, 527.32124],]
+
+
+raw_list=['QE_Plus_YJ_FL_50per_20190501_F1_R1.raw', 'QE_Plus_YJ_HJX_NPM_PH8_50per_20190820_F1_R2.raw',
+            'QEy_Plus_YJ_HJX_ENE8_50per_20191002_F1_R1.raw', 'HFX_YangJing_HJX_VSF_R1_20210319.raw',
+            'QE_Plus_YJ_HJX_3_PPMS-P8_50per_20190822_F1_R1.raw', 'HFX_YangJing_HeJiXiang_STP-1_20210515_R1.raw', 
+            'HFX_YangJing_HJX_NHS100_20210607_R1.raw', 'HFX_YangJing_HeJiXiang_Dia_1_20210401.raw',  
+            'QE_Plus_YangJing_APEX_L2_Elution_TCP_100per_20180815.raw', 'QE_Plus_TCP_HRP_Tyr_20200113_F1_R1.raw',
+            'SulfenQ_H2O2_LH_C1.raw', 
+            'QE_Plus_YangJing_FL_SOH-55_50per_20170618.raw',
+            'QE_Plus_YangJing_WYne_C_TCP_50per_20180823.raw', 'QE_Plus_YangJing_WYne_N_TCP_50per_20180823.raw',
+            'QE_Plus_YangJing_WYne_O_TCP_50per_20180823.raw',  'QE_Plus_YangJing_FL_ALK_50per_20170531.raw',
+            'RKO_aHNE_PC0h_BR1_T1.raw','JY_RKO_aONE_PC0h_20150419_BR1_T1.raw']
+
 
 gt_mass_list = [[252.12224, 258.142372],
                 [292.11716, 298.137292, 310.12772, 316.147852],
@@ -133,7 +136,6 @@ def scatter_plot(x, y, x_label=None, y_label=None):
 
 
 
-
 def close_dataset_list_evaluation():
     current_path = os.getcwd() 
     cfg_path = os.path.join(current_path, 'pChem.cfg') 
@@ -147,7 +149,7 @@ def close_dataset_list_evaluation():
         raw_name = raw_list[i] 
         output_path = config_write(cfg_path, raw_name)
         run()
-        blind_res_path = os.path.join(os.path.join(output_path, 'close'), 'pFind-Filtered.spectra')
+        blind_res_path = os.path.join(os.path.join(output_path, 'source\\blind'), 'pFind-Filtered.spectra')
         t_computed_list = [] 
         t_ppm_list = [] 
         j = 0
